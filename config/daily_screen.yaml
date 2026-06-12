@@ -1,0 +1,63 @@
+# 每日选股规则 — 修改 filters 列表即可调整逻辑，无需改代码
+
+data_source: akshare
+
+universe:
+  exclude_st: true
+  exclude_bj: true
+  max_stocks: null
+
+# 按成本从低到高排列；引擎会在需要时批量/按需拉取数据
+filters:
+  - name: non_st
+    type: non_st
+
+  - name: roe
+    type: roe_window
+    years: 3
+    min_pct: 8
+    require_all_years: true
+
+  - name: near_52w_low
+    type: near_52w_low
+    max_price_to_low_ratio: 1.05
+
+  - name: dividend_yield
+    type: dividend_yield_min
+    threshold_pct: 1.0
+
+  - name: valuation
+    type: valuation_by_profit
+    profit_threshold_yuan: 100000000
+    pe_max: 20
+    pb_max: 2
+    ps_max: 3
+
+  - name: debt_ratio
+    type: debt_ratio_max
+    threshold_pct: 40
+    use_latest_annual: true
+
+  - name: margin_quality
+    type: margin_or_window
+    years: 3
+    gross_margin_min_pct: 40
+    net_margin_min_pct: 20
+    require_all_years: true
+
+  - name: operating_cashflow
+    type: operating_cashflow_window
+    years: 3
+    require_all_years: true
+    use_per_share: true
+
+output:
+  directory: data/results
+  filename: daily_screen.csv
+
+fetch:
+  use_cache: true
+  cache_dir: data/cache
+  cache_ttl_hours: 12
+  financial_workers: 2
+  request_interval_sec: 0.25

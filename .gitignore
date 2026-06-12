@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 本地数据与缓存（运行时生成）
+data/cache/
+data/results/
+*.sqlite3
+*.csv
+logs/
+*.log
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
