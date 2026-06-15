@@ -90,6 +90,16 @@ def annual_window(
     return rows[-years:]
 
 
+def adaptive_annual_window(
+    financials: list[AnnualMetrics],
+    target_years: int,
+    *,
+    annual_only: bool = True,
+) -> list[AnnualMetrics]:
+    """Return up to target_years of annual reports; fewer if history is shorter."""
+    return annual_window(financials, target_years, annual_only=annual_only)
+
+
 def industry_matches_keywords(industry: str | None, keywords: list[str]) -> bool:
     if not industry:
         return False

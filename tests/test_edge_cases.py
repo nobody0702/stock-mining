@@ -21,8 +21,8 @@ from stock_mining.models import (
 from stock_mining.utils import annual_window
 
 
-def test_annual_window_requires_full_years_for_new_listing():
-    """上市不足3年的公司：只有2期年报，应判定为不足3年。"""
+def test_annual_window_uses_available_years_for_new_listing():
+    """上市不足3年的公司：只有2期年报，仍可用现有 n 年评估。"""
     financials = StockFinancials(
         "301001",
         [
@@ -36,9 +36,25 @@ def test_annual_window_requires_full_years_for_new_listing():
     margin = MarginOrWindowFilter(years=3)
     ocf = OperatingCashflowWindowFilter(years=3)
     ctx = ScreeningContext(stock=StockInfo("301001", "新股"), financials=financials)
-    assert not margin.evaluate(ctx).passed
-    assert "年报不足 3 年" in margin.evaluate(ctx).reason
-    assert not ocf.evaluate(ctx).passed
+    assert margin.evaluate(ctx).passed
+    assert ocf.evaluate(
+        ScreeningContext(
+            stock=StockInfo("301001", "新股"),
+            financials=StockFinancials(
+                "301001",
+                [
+                    AnnualMetrics(
+                        date(2023, 12, 31),
+                        operating_cashflow_per_share=1.0,
+                    ),
+                    AnnualMetrics(
+                        date(2024, 12, 31),
+                        operating_cashflow_per_share=2.0,
+                    ),
+                ],
+            ),
+        )
+    ).passed
 
 
 def test_margin_missing_one_year_data_fails():
@@ -101,12 +117,14 @@ def test_yaml_builds_all_configured_filters():
 def test_yaml_thresholds_match_filter_objects():
     config = load_pipeline_config("config/daily_screen.yaml")
     filters = {f.name: f for f in build_filters(config.filters)}
-    assert filters["dividend_yield"].threshold_pct == 2.0
+    assert filters["dividend_yield"].threshold_pct == 1.0
     assert filters["roe"].min_pct == 8
-    assert filters["roe"].years == 3
+    assert filters["roe"].high_min_pct == 10
+    assert filters["roe"].years == 5
     assert filters["near_52w_low"].max_price_to_low_ratio == 1.05
     assert filters["margin_quality"].years == 3
     assert filters["margin_quality"].gross_margin_min_pct == 40
     assert filters["operating_cashflow"].years == 3
     assert filters["valuation"].pe_max == 20
     assert filters["debt_ratio"].threshold_pct == 40
+    assert filters["debt_ratio"].years == 3

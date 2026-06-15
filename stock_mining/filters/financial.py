@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from stock_mining.filters.base import Filter, FilterResult
 from stock_mining.models import ScreeningContext
-from stock_mining.utils import annual_window
+from stock_mining.utils import adaptive_annual_window
 
 
 class MarginOrWindowFilter(Filter):
@@ -32,9 +32,9 @@ class MarginOrWindowFilter(Filter):
         if financials is None:
             return FilterResult(False, "缺少财务数据")
 
-        window = annual_window(financials.annual, self.years)
-        if len(window) < self.years:
-            return FilterResult(False, f"年报不足 {self.years} 年")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报数据")
 
         year_results: list[bool] = []
         for metrics in window:
@@ -55,7 +55,10 @@ class MarginOrWindowFilter(Filter):
                 f"利润率条件未满足: gross>{self.gross_margin_min_pct}% "
                 f"or net>{self.net_margin_min_pct}%",
             )
-        return FilterResult(True, "过去3年利润率条件满足")
+        return FilterResult(
+            True,
+            f"过去{len(window)}年利润率条件满足",
+        )
 
 
 class OperatingCashflowWindowFilter(Filter):
@@ -81,9 +84,9 @@ class OperatingCashflowWindowFilter(Filter):
         if financials is None:
             return FilterResult(False, "缺少财务数据")
 
-        window = annual_window(financials.annual, self.years)
-        if len(window) < self.years:
-            return FilterResult(False, f"年报不足 {self.years} 年")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报数据")
 
         checks: list[bool] = []
         for metrics in window:
@@ -95,22 +98,30 @@ class OperatingCashflowWindowFilter(Filter):
 
         passed = all(checks) if self.require_all_years else any(checks)
         if not passed:
-            return FilterResult(False, "过去3年经营现金流未全部为正")
-        return FilterResult(True, "过去3年经营现金流均为正")
+            return FilterResult(
+                False,
+                f"过去{len(window)}年经营现金流未全部为正",
+            )
+        return FilterResult(
+            True,
+            f"过去{len(window)}年经营现金流均为正",
+        )
 
 
 class RoeWindowFilter(Filter):
     def __init__(
         self,
         name: str = "roe_window",
-        years: int = 3,
+        years: int = 5,
         min_pct: float = 8.0,
+        high_min_pct: float = 10.0,
         require_all_years: bool = True,
         **_: object,
     ) -> None:
         self.name = name
         self.years = years
         self.min_pct = min_pct
+        self.high_min_pct = high_min_pct
         self.require_all_years = require_all_years
 
     @property
@@ -122,9 +133,9 @@ class RoeWindowFilter(Filter):
         if financials is None:
             return FilterResult(False, "缺少财务数据")
 
-        window = annual_window(financials.annual, self.years)
-        if len(window) < self.years:
-            return FilterResult(False, f"年报不足 {self.years} 年")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报数据")
 
         values: list[float] = []
         for metrics in window:
@@ -132,14 +143,27 @@ class RoeWindowFilter(Filter):
                 return FilterResult(False, "缺少净资产收益率")
             values.append(metrics.roe_pct)
 
-        checks = [value > self.min_pct for value in values]
-        passed = all(checks) if self.require_all_years else any(checks)
-        if not passed:
+        n = len(values)
+        high_count = sum(value > self.high_min_pct for value in values)
+        min_count = sum(value > self.min_pct for value in values)
+        required_min_count = max(0, n - 2)
+
+        if high_count < 1:
             return FilterResult(
                 False,
-                f"过去{self.years}年 ROE 未全部 > {self.min_pct}%: {values}",
+                f"过去{n}年 ROE 无年份 > {self.high_min_pct}%: {values}",
             )
-        return FilterResult(True, f"过去{self.years}年 ROE 均 > {self.min_pct}%")
+        if min_count < required_min_count:
+            return FilterResult(
+                False,
+                f"过去{n}年 ROE 仅 {min_count} 年 > {self.min_pct}%，"
+                f"需要至少 {required_min_count} 年: {values}",
+            )
+        return FilterResult(
+            True,
+            f"过去{n}年 ROE 满足: >{self.high_min_pct}% 至少1年, "
+            f">{self.min_pct}% 至少{required_min_count}年",
+        )
 
 
 class DebtRatioMaxFilter(Filter):
@@ -147,11 +171,13 @@ class DebtRatioMaxFilter(Filter):
         self,
         name: str = "debt_ratio_max",
         threshold_pct: float = 40.0,
+        years: int = 3,
         use_latest_annual: bool = True,
         **_: object,
     ) -> None:
         self.name = name
         self.threshold_pct = threshold_pct
+        self.years = years
         self.use_latest_annual = use_latest_annual
 
     @property
@@ -163,15 +189,25 @@ class DebtRatioMaxFilter(Filter):
         if financials is None:
             return FilterResult(False, "缺少财务数据")
 
-        window = annual_window(financials.annual, 1)
+        window = adaptive_annual_window(financials.annual, self.years)
         if not window:
             return FilterResult(False, "缺少资产负债率")
-        debt_ratio = window[-1].debt_ratio_pct
-        if debt_ratio is None:
-            return FilterResult(False, "缺少资产负债率")
-        if debt_ratio >= self.threshold_pct:
+
+        ratios: list[float] = []
+        for metrics in window:
+            if metrics.debt_ratio_pct is None:
+                return FilterResult(False, "缺少资产负债率")
+            ratios.append(metrics.debt_ratio_pct)
+
+        if any(ratio >= self.threshold_pct for ratio in ratios):
+            bad = next(ratio for ratio in ratios if ratio >= self.threshold_pct)
             return FilterResult(
                 False,
-                f"资产负债率 {debt_ratio:.2f}% >= {self.threshold_pct}%",
+                f"资产负债率 {bad:.2f}% >= {self.threshold_pct}%",
             )
-        return FilterResult(True, f"资产负债率 {debt_ratio:.2f}%")
+        latest = ratios[-1]
+        return FilterResult(
+            True,
+            f"过去{len(window)}年资产负债率均 < {self.threshold_pct}%"
+            f"（最新 {latest:.2f}%）",
+        )

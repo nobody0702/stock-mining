@@ -14,9 +14,9 @@ filters:
 
   - name: roe
     type: roe_window
-    years: 3
+    years: 5
+    high_min_pct: 10
     min_pct: 8
-    require_all_years: true
 
   - name: near_52w_low
     type: near_52w_low
@@ -35,8 +35,8 @@ filters:
 
   - name: debt_ratio
     type: debt_ratio_max
+    years: 3
     threshold_pct: 40
-    use_latest_annual: true
 
   - name: margin_quality
     type: margin_or_window
