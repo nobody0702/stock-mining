@@ -20,7 +20,7 @@ filters:
 
   - name: near_52w_low
     type: near_52w_low
-    max_price_to_low_ratio: 1.05
+    max_price_to_low_ratio: 1.1
 
   - name: dividend_yield
     type: dividend_yield_min
