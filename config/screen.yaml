@@ -1,0 +1,121 @@
+# 错杀成长型白马 — 双轨筛选配置
+
+data_source: akshare
+markets: [a]
+
+universe:
+  exclude_st: true
+  exclude_bj: true
+  max_stocks: null
+
+common_filters:
+  - name: non_st
+    type: non_st
+
+  - name: near_52w_low
+    type: near_52w_low
+    max_price_to_low_ratio: 1.08
+
+tracks:
+  profitable_growth:
+    filters:
+      - name: roe
+        type: roe_window
+        years: 5
+        high_min_pct: 10
+        min_pct: 8
+
+      - name: profit_not_deteriorating
+        type: profit_not_deteriorating
+
+      - name: roe_not_declining
+        type: roe_not_declining
+        years: 3
+
+      - name: ocf_quality
+        type: ocf_to_profit_min
+        min_ratio: 0.8
+
+      - name: dividend_yield
+        type: dividend_yield_min
+        threshold_pct: 1.0
+
+      - name: valuation
+        type: valuation_by_profit
+        profit_threshold_yuan: 100000000
+        pe_max: 20
+        pb_max: 2
+        ps_max: 3
+
+      - name: debt_ratio
+        type: debt_ratio_max
+        years: 3
+        threshold_pct: 40
+
+      - name: margin_quality
+        type: margin_or_window
+        years: 3
+        gross_margin_min_pct: 40
+        net_margin_min_pct: 20
+        require_all_years: true
+
+      - name: operating_cashflow
+        type: operating_cashflow_window
+        years: 3
+        min_positive_years: 2
+        use_per_share: true
+
+  loss_tolerant_growth:
+    filters:
+      - name: profit_relaxed
+        type: profit_window_relaxed
+        years: 3
+        min_profitable_years: 1
+
+      - name: revenue_ok
+        type: revenue_growth_window
+        years: 3
+
+      - name: gross_margin
+        type: gross_margin_min
+        years: 3
+        min_pct: 35
+
+      - name: debt_ratio
+        type: debt_ratio_max
+        years: 3
+        threshold_pct: 50
+
+      - name: valuation_ps
+        type: valuation_by_profit
+        profit_threshold_yuan: 100000000
+        pe_max: 80
+        pb_max: 5
+        ps_max: 8
+
+scoring:
+  weights:
+    near_low: 0.3
+    drawdown: 0.2
+    roe: 0.2
+    growth: 0.2
+    cash_quality: 0.1
+
+output:
+  directory: data/results
+  top_n: null
+  candidates_json: candidates.json
+  candidates_csv: candidates.csv
+  filename: daily_screen.csv
+
+state:
+  db_path: data/state/user_state.sqlite3
+  blacklist_release_days: 180
+  recommendation_cooldown_days: 30
+
+fetch:
+  use_cache: true
+  cache_dir: data/cache
+  cache_ttl_hours: 12
+  financial_workers: 2
+  request_interval_sec: 0.25

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from stock_mining.markets.base import Market, normalize_stock_code
 from stock_mining.utils import normalize_code
 
 
@@ -27,18 +28,58 @@ class FetchConfig:
 
 
 @dataclass
+class ScoringConfig:
+    weights: dict[str, float] = field(
+        default_factory=lambda: {
+            "near_low": 0.3,
+            "drawdown": 0.2,
+            "roe": 0.2,
+            "growth": 0.2,
+            "cash_quality": 0.1,
+        }
+    )
+
+
+@dataclass
 class OutputConfig:
     directory: str = "data/results"
     filename: str = "daily_screen.csv"
+    candidates_json: str = "candidates.json"
+    candidates_csv: str = "candidates.csv"
+    top_n: int | None = None
+
+
+@dataclass
+class StateConfig:
+    db_path: str = "data/state/user_state.sqlite3"
+    blacklist_release_days: int = 180
+    recommendation_cooldown_days: int = 30
+
+
+@dataclass
+class TrackConfig:
+    name: str
+    filters: list[dict[str, Any]]
 
 
 @dataclass
 class PipelineConfig:
     data_source: str
+    markets: list[Market]
     universe: UniverseConfig
-    filters: list[dict[str, Any]]
+    common_filters: list[dict[str, Any]]
+    tracks: list[TrackConfig]
     fetch: FetchConfig
     output: OutputConfig
+    scoring: ScoringConfig
+    state: StateConfig
+    filters: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _parse_markets(raw: list[str] | None) -> list[Market]:
+    if not raw:
+        return [Market.A]
+    return [Market(item) for item in raw]
 
 
 def load_pipeline_config(path: str | Path) -> PipelineConfig:
@@ -49,20 +90,40 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
     universe_raw = raw.get("universe", {})
     fetch_raw = raw.get("fetch", {})
     output_raw = raw.get("output", {})
+    scoring_raw = raw.get("scoring", {})
+    state_raw = raw.get("state", {})
 
     codes = universe_raw.get("codes")
     if codes:
         codes = [normalize_code(code) for code in codes]
 
+    tracks: list[TrackConfig] = []
+    tracks_raw = raw.get("tracks", {})
+    if isinstance(tracks_raw, dict):
+        for name, track_body in tracks_raw.items():
+            filters = track_body.get("filters", []) if isinstance(track_body, dict) else track_body
+            tracks.append(TrackConfig(name=name, filters=list(filters or [])))
+    elif isinstance(tracks_raw, list):
+        for item in tracks_raw:
+            tracks.append(
+                TrackConfig(name=str(item["name"]), filters=list(item.get("filters", [])))
+            )
+
+    legacy_filters = list(raw.get("filters", []))
+    common_filters = list(raw.get("common_filters", legacy_filters))
+
     return PipelineConfig(
         data_source=raw.get("data_source", "akshare"),
+        markets=_parse_markets(raw.get("markets")),
         universe=UniverseConfig(
             exclude_st=bool(universe_raw.get("exclude_st", True)),
             exclude_bj=bool(universe_raw.get("exclude_bj", True)),
             max_stocks=universe_raw.get("max_stocks"),
             codes=codes,
         ),
-        filters=list(raw.get("filters", [])),
+        common_filters=common_filters,
+        tracks=tracks,
+        filters=legacy_filters,
         fetch=FetchConfig(
             use_cache=bool(fetch_raw.get("use_cache", True)),
             cache_dir=str(fetch_raw.get("cache_dir", "data/cache")),
@@ -73,5 +134,23 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
         output=OutputConfig(
             directory=str(output_raw.get("directory", "data/results")),
             filename=str(output_raw.get("filename", "daily_screen.csv")),
+            candidates_json=str(output_raw.get("candidates_json", "candidates.json")),
+            candidates_csv=str(output_raw.get("candidates_csv", "candidates.csv")),
+            top_n=(
+                None
+                if output_raw.get("top_n") is None
+                else int(output_raw.get("top_n", 15))
+            ),
+        ),
+        scoring=ScoringConfig(weights=dict(scoring_raw.get("weights", ScoringConfig().weights))),
+        state=StateConfig(
+            db_path=str(state_raw.get("db_path", "data/state/user_state.sqlite3")),
+            blacklist_release_days=int(state_raw.get("blacklist_release_days", 180)),
+            recommendation_cooldown_days=int(state_raw.get("recommendation_cooldown_days", 30)),
         ),
     )
+
+
+def normalize_code_for_market(code: str, market: Market) -> str:
+    return normalize_stock_code(code, market)
+

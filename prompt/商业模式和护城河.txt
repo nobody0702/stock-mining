@@ -1,5 +1,15 @@
-第一步：
-先 python3 scripts/daily_screen.py 挖掘出股票。
-第二步：
-请你用一个表格，分析所有股票。
-一列显示它的商业模式（老百姓通俗的话说清楚），一列显示它的长期护城河（打个分，竞争对手难以模仿的差异化优势和未来护城河进一步拓宽的可能性）
+第一步：运行量化筛选
+  python3 scripts/daily_screen.py
+
+第二步：启动 Web 审阅（黑名单 / 已研究 / 粘贴 LLM 表格 / 默许缓存）
+  python3 scripts/serve_review.py
+  # 若提示 No module named streamlit，先执行：
+  #   cd stock-mining && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+
+第三步：在 Web 或 Cursor 中使用 Prompt
+  - Web「今日候选」页复制 Prompt 到 Cursor
+  - 或批量导出：python3 scripts/export_prompts.py
+
+第四步：将 Cursor 返回的 Markdown 表格粘贴回 Web「粘贴分析」页，提交后在「待默许队列」确认。
+
+维度定义见 config/analysis_dimensions.yaml；默许后的分析会按维度 TTL 缓存，过期后需重新分析。

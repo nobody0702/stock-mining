@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from stock_mining.markets.base import Market
 from stock_mining.models import MarketSnapshot, StockFinancials, StockInfo
 
 
 class MarketDataProvider(ABC):
+    @property
+    def market(self) -> Market:
+        return Market.A
+
     @abstractmethod
     def list_stocks(self) -> list[StockInfo]:
         ...

@@ -67,12 +67,14 @@ class OperatingCashflowWindowFilter(Filter):
         name: str = "operating_cashflow_window",
         years: int = 3,
         require_all_years: bool = True,
+        min_positive_years: int | None = None,
         use_per_share: bool = True,
         **_: object,
     ) -> None:
         self.name = name
         self.years = years
         self.require_all_years = require_all_years
+        self.min_positive_years = min_positive_years
         self.use_per_share = use_per_share
 
     @property
@@ -95,6 +97,20 @@ class OperatingCashflowWindowFilter(Filter):
                 checks.append(False)
             else:
                 checks.append(ocf > 0)
+
+        positive_count = sum(checks)
+        if self.min_positive_years is not None:
+            passed = positive_count >= self.min_positive_years
+            if not passed:
+                return FilterResult(
+                    False,
+                    f"过去{len(window)}年仅 {positive_count} 年经营现金流为正，"
+                    f"需要至少 {self.min_positive_years} 年",
+                )
+            return FilterResult(
+                True,
+                f"过去{len(window)}年有 {positive_count} 年经营现金流为正",
+            )
 
         passed = all(checks) if self.require_all_years else any(checks)
         if not passed:
@@ -211,3 +227,189 @@ class DebtRatioMaxFilter(Filter):
             f"过去{len(window)}年资产负债率均 < {self.threshold_pct}%"
             f"（最新 {latest:.2f}%）",
         )
+
+
+class ProfitNotDeterioratingFilter(Filter):
+    def __init__(self, name: str = "profit_not_deteriorating", **_: object) -> None:
+        self.name = name
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, 3)
+        if len(window) < 2:
+            return FilterResult(False, "年报不足，无法判断业绩趋势")
+        latest = window[-1]
+        prev = window[-2]
+        if latest.net_profit_yuan is None or prev.net_profit_yuan is None:
+            return FilterResult(False, "缺少净利润")
+        if prev.net_profit_yuan <= 0:
+            return FilterResult(True, "前一年非盈利，跳过同比判断")
+        yoy = (latest.net_profit_yuan - prev.net_profit_yuan) / abs(prev.net_profit_yuan)
+        if yoy < -0.05:
+            return FilterResult(False, f"最新净利润同比下滑 {yoy * 100:.1f}%")
+        if latest.revenue_yuan is not None and prev.revenue_yuan is not None and prev.revenue_yuan > 0:
+            rev_yoy = (latest.revenue_yuan - prev.revenue_yuan) / prev.revenue_yuan
+            if rev_yoy < -0.05:
+                return FilterResult(False, f"最新收入同比下滑 {rev_yoy * 100:.1f}%")
+        return FilterResult(True, "业绩未明显恶化")
+
+
+class RoeNotDecliningFilter(Filter):
+    def __init__(self, name: str = "roe_not_declining", years: int = 3, **_: object) -> None:
+        self.name = name
+        self.years = years
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if len(window) < 2:
+            return FilterResult(False, "ROE 数据不足")
+        values = [item.roe_pct for item in window if item.roe_pct is not None]
+        if len(values) < 2:
+            return FilterResult(False, "缺少 ROE")
+        if values[-1] + 0.5 < values[0]:
+            return FilterResult(False, f"ROE 走弱: {values[0]:.1f}% -> {values[-1]:.1f}%")
+        return FilterResult(True, f"ROE 未持续下滑: {values}")
+
+
+class OcfToProfitMinFilter(Filter):
+    def __init__(
+        self,
+        name: str = "ocf_to_profit_min",
+        min_ratio: float = 0.8,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.min_ratio = min_ratio
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, 1)
+        if not window:
+            return FilterResult(False, "缺少年报")
+        latest = window[-1]
+        profit = latest.net_profit_yuan
+        ocf = latest.operating_cashflow_yuan
+        if profit is None or profit <= 0:
+            return FilterResult(True, "最新非盈利，跳过现金流含金量")
+        if ocf is None:
+            per_share = latest.operating_cashflow_per_share
+            if per_share is None:
+                return FilterResult(False, "缺少经营现金流")
+            return FilterResult(True, "仅有每股经营现金流，跳过比值")
+        ratio = ocf / profit
+        if ratio < self.min_ratio:
+            return FilterResult(False, f"经营现金流/净利润={ratio:.2f} < {self.min_ratio}")
+        return FilterResult(True, f"经营现金流/净利润={ratio:.2f}")
+
+
+class ProfitWindowRelaxedFilter(Filter):
+    def __init__(
+        self,
+        name: str = "profit_window_relaxed",
+        years: int = 3,
+        min_profitable_years: int = 1,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.years = years
+        self.min_profitable_years = min_profitable_years
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报")
+        profitable = sum(
+            1 for item in window if item.net_profit_yuan is not None and item.net_profit_yuan > 0
+        )
+        if profitable < self.min_profitable_years:
+            return FilterResult(
+                False,
+                f"过去{len(window)}年仅 {profitable} 年盈利，需要至少 {self.min_profitable_years} 年",
+            )
+        return FilterResult(True, f"过去{len(window)}年有 {profitable} 年盈利")
+
+
+class RevenueGrowthWindowFilter(Filter):
+    def __init__(self, name: str = "revenue_growth_window", years: int = 3, **_: object) -> None:
+        self.name = name
+        self.years = years
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, self.years)
+        revenues = [item.revenue_yuan for item in window if item.revenue_yuan is not None]
+        if len(revenues) < 2:
+            return FilterResult(True, "收入数据不足，跳过")
+        consecutive_decline = 0
+        for idx in range(1, len(revenues)):
+            if revenues[idx] < revenues[idx - 1]:
+                consecutive_decline += 1
+                if consecutive_decline >= 2:
+                    return FilterResult(False, "收入连续2年下滑")
+            else:
+                consecutive_decline = 0
+        return FilterResult(True, "收入未连续2年下滑")
+
+
+class GrossMarginMinFilter(Filter):
+    def __init__(
+        self,
+        name: str = "gross_margin_min",
+        years: int = 3,
+        min_pct: float = 35.0,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.years = years
+        self.min_pct = min_pct
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报")
+        for metrics in window:
+            if metrics.gross_margin_pct is None or metrics.gross_margin_pct < self.min_pct:
+                return FilterResult(
+                    False,
+                    f"毛利率未全部 >= {self.min_pct}%",
+                )
+        return FilterResult(True, f"过去{len(window)}年毛利率 >= {self.min_pct}%")

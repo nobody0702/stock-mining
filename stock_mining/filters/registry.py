@@ -5,13 +5,21 @@ from typing import Any
 from stock_mining.filters.base import Filter
 from stock_mining.filters.financial import (
     DebtRatioMaxFilter,
+    GrossMarginMinFilter,
     MarginOrWindowFilter,
+    OcfToProfitMinFilter,
     OperatingCashflowWindowFilter,
+    ProfitNotDeterioratingFilter,
+    ProfitWindowRelaxedFilter,
+    RevenueGrowthWindowFilter,
+    RoeNotDecliningFilter,
     RoeWindowFilter,
 )
+from stock_mining.filters.group import FilterGroupAnyFilter
 from stock_mining.filters.industry import ExcludeIndustryKeywordsFilter, NonDecliningIndustryFilter
 from stock_mining.filters.market import (
     DividendYieldMinFilter,
+    DrawdownFromHighMinFilter,
     Near52WeekLowFilter,
     NonStFilter,
     ValuationByProfitFilter,
@@ -22,12 +30,20 @@ FILTER_TYPES: dict[str, type[Filter]] = {
     "exclude_industry_keywords": ExcludeIndustryKeywordsFilter,
     "non_declining_industry": NonDecliningIndustryFilter,
     "near_52w_low": Near52WeekLowFilter,
+    "drawdown_from_high_min": DrawdownFromHighMinFilter,
     "dividend_yield_min": DividendYieldMinFilter,
     "valuation_by_profit": ValuationByProfitFilter,
     "debt_ratio_max": DebtRatioMaxFilter,
     "margin_or_window": MarginOrWindowFilter,
     "operating_cashflow_window": OperatingCashflowWindowFilter,
     "roe_window": RoeWindowFilter,
+    "profit_not_deteriorating": ProfitNotDeterioratingFilter,
+    "roe_not_declining": RoeNotDecliningFilter,
+    "ocf_to_profit_min": OcfToProfitMinFilter,
+    "profit_window_relaxed": ProfitWindowRelaxedFilter,
+    "revenue_growth_window": RevenueGrowthWindowFilter,
+    "gross_margin_min": GrossMarginMinFilter,
+    "filter_group_any": FilterGroupAnyFilter,
 }
 
 

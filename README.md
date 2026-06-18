@@ -1,63 +1,71 @@
 # stock-mining
 
-每日 A 股选股：模块化筛选框架。规则写在 YAML，逻辑拆成独立 Filter，各模块有 unit test。
+每日 A 股 + 港股通选股：量化筛「错杀的成长型白马」，Web 审阅 + Cursor 大模型定性分析。
 
 > 数据来自 AkShare 公开接口，仅供研究，不构成投资建议。
+
+## 投资定义
+
+| 维度 | 量化（Python） | 定性（Cursor 粘贴回 Web） |
+|------|----------------|---------------------------|
+| 便宜 | 52 周新低附近 + 距高点回撤 | 为什么现在便宜 |
+| 成长 | 收入/利润趋势、ROE/毛利率 | 未来还能不能长大 |
+| 白马 | 多年财务质量 | 商业模式、护城河、管理层 |
+| 非陷阱 | 业绩未持续恶化 | 一次性利空 vs 基本面变坏 |
 
 ## 安装
 
 ```bash
-git clone git@github.com:<你的用户名>/stock-mining.git
 cd stock-mining
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 每日运行
+## 一日工作流
 
 ```bash
+# 1. 量化筛股（A 股 + 港股通，双轨 OR，Top 15）
 python3 scripts/daily_screen.py
+
+# 2. Web 审阅（黑名单 / 已研究 / 粘贴 LLM 表格 / 默许缓存）
+python3 scripts/serve_review.py
+
+# 3. 批量导出 Cursor Prompt（可选）
+python3 scripts/export_prompts.py --limit 10
+
+# 4. 单股规则审计
+python3 scripts/audit_screen.py --codes 600519 --market a
+python3 scripts/audit_screen.py --from-csv data/results/candidates.csv --limit 5
 ```
 
-输出示例（仅代码和名称）：
+## 双轨筛选（config/screen.yaml）
 
-```
-688001	优质样本
-600xxx	某某股份
-已写入: data/results/daily_screen.csv
-```
+- **profitable_growth**：盈利型成长白马（ROE、股息、现金流、估值等）
+- **loss_tolerant_growth**：暂亏型成长（3 年内至少 1 年盈利，高毛利，收入未连续下滑）
 
-调试：
-
-```bash
-python3 scripts/daily_screen.py --max-stocks 50
-python3 scripts/daily_screen.py --codes 600519 688001
-```
-
-## 当前规则（config/daily_screen.yaml）
-
-| 条件 | 实现 |
-|------|------|
-| 52 周新低附近 | 现价 / 52 周最低 ≤ 1.05 |
-| 非 ST | 名称不含 ST |
-| 非持续衰退行业 | 所属行业 3 年板块收益 ≥ -15% |
-| 排除银行/保险/白酒/铁路/交通/地产 | 行业关键词黑名单 |
-| 过去 3 年毛利率>40% **或** 净利率>20% | 每年满足其一 |
-| 过去 3 年经营现金流为正 | 每股经营现金流 > 0 |
-| 股息率 > 2% | 行情字段 |
-| 年盈利 ≥1 亿 → PE<20；<1 亿 → PB<2 或 PS<3 | 分档估值 |
-| 资产负债率 < 40% | 最新年报 |
-
-修改 `config/daily_screen.yaml` 的 `filters` 列表即可调整，无需改 Python。
+公共条件：非 ST、行业过滤、52 周低附近、高点回撤、行业非持续衰退。
 
 ## 架构
 
 ```
-filters/     每个 Filter 独立、可单测
-pipeline/    两阶段：先行情过滤，再拉财务
-data/        AkShare 数据源 + SQLite 缓存
-tests/       pytest 单元测试
+markets/       A 股 + 港股通 Provider
+filters/       可配置 Filter 插件
+scoring/       打分排序（与 pass/fail 分离）
+pipeline/      筛股 + 去重
+state/         黑名单 / 已研究 / LLM 缓存（SQLite）
+llm/           Prompt 生成 + Markdown 表格解析
+web/           Streamlit 审阅
 ```
+
+## 用户状态
+
+| 机制 | 默认 | 说明 |
+|------|------|------|
+| 黑名单 | 180 天 | Web 默许后生效，到期自动释放 |
+| 已研究冷却 | 30 天 | 标记后短期内不再推荐 |
+| 定性缓存 | 按维度 TTL | 默许后生效（商业模式 90 天等） |
+
+数据分离：`data/cache/`（行情缓存） vs `data/state/`（用户状态）。
 
 ## 测试
 
@@ -65,23 +73,15 @@ tests/       pytest 单元测试
 pytest -q
 ```
 
-## 规则审计
-
-逐条复核某只股票是否满足 YAML 中全部 filter（含数据缺失说明）：
-
-```bash
-python3 scripts/audit_screen.py --from-csv data/results/daily_screen.csv --limit 10
-python3 scripts/audit_screen.py --codes 600519 000423
-```
-
-## 定时任务（cron 示例）
+## 定时任务
 
 ```cron
 30 18 * * 1-5 cd /path/to/stock-mining && .venv/bin/python3 scripts/daily_screen.py >> logs/daily.log 2>&1
 ```
 
-## 说明
+## 调试
 
-- **数据源容错**：全量东财行情易断连，已改用 `stock_fhps_em`（股息）+ `stock_value_em`（估值/52周低）+ `stock_profile_cninfo`（行业）+ 同花顺财务摘要；带重试与 SQLite 缓存。
-- **全市场较慢**：候选股每只约 3 次 API，建议先 `--max-stocks 50` 验证。
-- 行业走势接口不可用时自动跳过（`skip_if_unavailable: true`）。
+```bash
+python3 scripts/daily_screen.py --max-stocks 50 --markets a
+python3 scripts/daily_screen.py --skip-dedup --top-n 5
+```

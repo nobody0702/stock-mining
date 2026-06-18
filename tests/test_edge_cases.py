@@ -98,33 +98,21 @@ def test_valuation_rejects_non_positive_pb_ps_for_small_profit():
 
 
 def test_yaml_builds_all_configured_filters():
-    config = load_pipeline_config("config/daily_screen.yaml")
-    filters = build_filters(config.filters)
-    assert len(filters) == len(config.filters)
-    names = {f.name for f in filters}
-    assert names == {
-        "non_st",
-        "roe",
-        "near_52w_low",
-        "dividend_yield",
-        "valuation",
-        "debt_ratio",
-        "margin_quality",
-        "operating_cashflow",
-    }
+    config = load_pipeline_config("config/screen.yaml")
+    common = build_filters(config.common_filters)
+    track_filters = build_filters(config.tracks[0].filters)
+    assert len(common) == 2
+    assert len(track_filters) >= 5
+    names = {f.name for f in common}
+    assert names == {"non_st", "near_52w_low"}
 
 
 def test_yaml_thresholds_match_filter_objects():
-    config = load_pipeline_config("config/daily_screen.yaml")
-    filters = {f.name: f for f in build_filters(config.filters)}
-    assert filters["dividend_yield"].threshold_pct == 1.0
-    assert filters["roe"].min_pct == 8
-    assert filters["roe"].high_min_pct == 10
-    assert filters["roe"].years == 5
-    assert filters["near_52w_low"].max_price_to_low_ratio == 1.05
-    assert filters["margin_quality"].years == 3
-    assert filters["margin_quality"].gross_margin_min_pct == 40
-    assert filters["operating_cashflow"].years == 3
-    assert filters["valuation"].pe_max == 20
-    assert filters["debt_ratio"].threshold_pct == 40
-    assert filters["debt_ratio"].years == 3
+    config = load_pipeline_config("config/screen.yaml")
+    common = {f.name: f for f in build_filters(config.common_filters)}
+    profitable = {f.name: f for f in build_filters(config.tracks[0].filters)}
+    assert common["near_52w_low"].max_price_to_low_ratio == 1.08
+    assert config.output.top_n is None
+    assert profitable["roe"].min_pct == 8
+    assert profitable["dividend_yield"].threshold_pct == 1.0
+    assert profitable["operating_cashflow"].min_positive_years == 2

@@ -114,3 +114,32 @@ class ValuationByProfitFilter(Filter):
             False,
             f"小盈利公司估值不满足: pb={market.pb}, ps={market.ps}",
         )
+
+
+class DrawdownFromHighMinFilter(Filter):
+    def __init__(
+        self,
+        name: str = "drawdown_from_high_min",
+        min_pct: float = 25.0,
+        skip_if_missing: bool = False,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.min_pct = min_pct
+        self.skip_if_missing = skip_if_missing
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        market = ctx.market
+        if market is None:
+            return FilterResult(False, "缺少行情")
+        drawdown = market.drawdown_from_high_pct
+        if drawdown is None:
+            if self.skip_if_missing:
+                return FilterResult(True, "缺少高点回撤数据，跳过")
+            return FilterResult(False, "缺少高点回撤数据")
+        if drawdown < self.min_pct:
+            return FilterResult(
+                False,
+                f"距52周高点回撤 {drawdown:.1f}% < {self.min_pct}%",
+            )
+        return FilterResult(True, f"距52周高点回撤 {drawdown:.1f}%")

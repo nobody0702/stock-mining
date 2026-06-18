@@ -9,6 +9,7 @@ import pandas as pd
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
 from stock_mining.data.http_retry import call_with_retry
+from stock_mining.markets.base import Market, calc_drawdown_from_high_pct
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import (
     normalize_code,
@@ -24,6 +25,10 @@ TRADING_DAYS_52W = 260
 
 class AkshareDataProvider(MarketDataProvider):
     """AkShare provider with multi-source fallbacks (East Money bulk APIs may fail)."""
+
+    @property
+    def market(self) -> Market:
+        return Market.A
 
     def __init__(
         self,
@@ -56,7 +61,7 @@ class AkshareDataProvider(MarketDataProvider):
             retries=self.network_retries,
         )
         return [
-            StockInfo(code=normalize_code(str(row["code"])), name=str(row["name"]).strip())
+            StockInfo(code=normalize_code(str(row["code"])), name=str(row["name"]).strip(), market=Market.A)
             for _, row in df.iterrows()
         ]
 
@@ -128,9 +133,12 @@ class AkshareDataProvider(MarketDataProvider):
         snapshot = MarketSnapshot(
             code=code,
             name=name,
+            market=Market.A,
             industry=industry,
             price=valuation.get("price"),
             low_52w=valuation.get("low_52w"),
+            high_52w=valuation.get("high_52w"),
+            drawdown_from_high_pct=valuation.get("drawdown_from_high_pct"),
             pe=valuation.get("pe"),
             pb=valuation.get("pb"),
             ps=valuation.get("ps"),
@@ -184,9 +192,13 @@ class AkshareDataProvider(MarketDataProvider):
         recent = df.tail(TRADING_DAYS_52W)
         latest = df.iloc[-1]
         low_52w = float(recent["当日收盘价"].min()) if not recent.empty else None
+        high_52w = float(recent["当日收盘价"].max()) if not recent.empty else None
+        price = _safe_float(latest.get("当日收盘价"))
         return {
-            "price": _safe_float(latest.get("当日收盘价")),
+            "price": price,
             "low_52w": low_52w,
+            "high_52w": high_52w,
+            "drawdown_from_high_pct": calc_drawdown_from_high_pct(price, high_52w),
             "pe": _safe_float(latest.get("PE(TTM)")),
             "pb": _safe_float(latest.get("市净率")),
             "ps": _safe_float(latest.get("市销率")),
@@ -280,15 +292,19 @@ class AkshareDataProvider(MarketDataProvider):
                 AnnualMetrics(
                     report_date=report_date,
                     net_profit_yuan=parse_money_to_yuan(row.get("净利润")),
+                    revenue_yuan=parse_money_to_yuan(
+                        row.get("营业总收入") or row.get("营业收入")
+                    ),
                     gross_margin_pct=parse_percent(row.get("销售毛利率")),
                     net_margin_pct=parse_percent(row.get("销售净利率")),
                     operating_cashflow_per_share=parse_number(row.get("每股经营现金流")),
+                    operating_cashflow_yuan=parse_money_to_yuan(row.get("经营现金流量净额")),
                     debt_ratio_pct=parse_percent(row.get("资产负债率")),
                     roe_pct=parse_percent(row.get("净资产收益率")),
                 )
             )
         annual.sort(key=lambda item: item.report_date)
-        return StockFinancials(code=code, annual=annual)
+        return StockFinancials(code=code, market=Market.A, annual=annual)
 
 
 def _parse_dividend_dataframe(df: pd.DataFrame) -> dict[str, float]:

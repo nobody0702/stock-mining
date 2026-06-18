@@ -98,6 +98,34 @@ def test_operating_cashflow_window_adaptive_short_history():
     assert f.evaluate(ctx).passed
 
 
+def test_operating_cashflow_two_of_three_years():
+    f = OperatingCashflowWindowFilter(years=3, min_positive_years=2)
+    ok = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), operating_cashflow_per_share=1.0),
+                AnnualMetrics(date(2023, 12, 31), operating_cashflow_per_share=-0.5),
+                AnnualMetrics(date(2024, 12, 31), operating_cashflow_per_share=2.0),
+            ],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("000002", "测试"),
+        financials=StockFinancials(
+            "000002",
+            [
+                AnnualMetrics(date(2022, 12, 31), operating_cashflow_per_share=-1.0),
+                AnnualMetrics(date(2023, 12, 31), operating_cashflow_per_share=-0.5),
+                AnnualMetrics(date(2024, 12, 31), operating_cashflow_per_share=2.0),
+            ],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
 def test_debt_ratio_max_single_year():
     f = DebtRatioMaxFilter(years=3, threshold_pct=40)
     ctx = ScreeningContext(

@@ -10,12 +10,23 @@ from stock_mining.models import AnnualMetrics, StockFinancials
 
 
 class SqliteCache:
-    def __init__(self, cache_dir: str | Path, ttl_hours: int = 12) -> None:
+    def __init__(
+        self,
+        cache_dir: str | Path,
+        ttl_hours: int = 12,
+        namespace_prefix: str = "",
+    ) -> None:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.cache_dir / "cache.sqlite3"
         self.ttl = timedelta(hours=ttl_hours)
+        self.namespace_prefix = namespace_prefix
         self._init_db()
+
+    def _ns(self, namespace: str) -> str:
+        if not self.namespace_prefix:
+            return namespace
+        return f"{self.namespace_prefix}:{namespace}"
 
     def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
@@ -32,6 +43,7 @@ class SqliteCache:
             )
 
     def get(self, namespace: str, key: str) -> Any | None:
+        namespace = self._ns(namespace)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT payload, updated_at FROM kv_cache WHERE namespace=? AND key=?",
@@ -45,6 +57,7 @@ class SqliteCache:
         return json.loads(row[0])
 
     def get_allow_stale(self, namespace: str, key: str) -> Any | None:
+        namespace = self._ns(namespace)
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT payload FROM kv_cache WHERE namespace=? AND key=?",
@@ -55,6 +68,7 @@ class SqliteCache:
         return json.loads(row[0])
 
     def set(self, namespace: str, key: str, payload: Any) -> None:
+        namespace = self._ns(namespace)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """
@@ -71,13 +85,16 @@ class SqliteCache:
 def serialize_financials(financials: StockFinancials) -> dict[str, Any]:
     return {
         "code": financials.code,
+        "market": financials.market.value,
         "annual": [
             {
                 "report_date": item.report_date.isoformat(),
                 "net_profit_yuan": item.net_profit_yuan,
+                "revenue_yuan": item.revenue_yuan,
                 "gross_margin_pct": item.gross_margin_pct,
                 "net_margin_pct": item.net_margin_pct,
                 "operating_cashflow_per_share": item.operating_cashflow_per_share,
+                "operating_cashflow_yuan": item.operating_cashflow_yuan,
                 "debt_ratio_pct": item.debt_ratio_pct,
                 "roe_pct": item.roe_pct,
             }
@@ -89,16 +106,21 @@ def serialize_financials(financials: StockFinancials) -> dict[str, Any]:
 def deserialize_financials(payload: dict[str, Any]) -> StockFinancials:
     from datetime import date
 
+    from stock_mining.markets.base import Market
+
     annual = [
         AnnualMetrics(
             report_date=date.fromisoformat(item["report_date"]),
             net_profit_yuan=item.get("net_profit_yuan"),
+            revenue_yuan=item.get("revenue_yuan"),
             gross_margin_pct=item.get("gross_margin_pct"),
             net_margin_pct=item.get("net_margin_pct"),
             operating_cashflow_per_share=item.get("operating_cashflow_per_share"),
+            operating_cashflow_yuan=item.get("operating_cashflow_yuan"),
             debt_ratio_pct=item.get("debt_ratio_pct"),
             roe_pct=item.get("roe_pct"),
         )
         for item in payload.get("annual", [])
     ]
-    return StockFinancials(code=payload["code"], annual=annual)
+    market = Market(payload.get("market", "a"))
+    return StockFinancials(code=payload["code"], market=market, annual=annual)
