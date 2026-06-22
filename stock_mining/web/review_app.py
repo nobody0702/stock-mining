@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -8,43 +9,133 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from stock_mining.models import CandidateHit
+from stock_mining.state.disposition import DispositionKind
 from stock_mining.web.review_service import ReviewService
+
+DISPOSITION_KINDS = [
+    DispositionKind.NOT_INTERESTED,
+    DispositionKind.TOO_EXPENSIVE,
+    DispositionKind.WATCHLIST,
+]
+
+
+def _copy_prompt_button(text: str, *, element_key: str) -> None:
+    """One-click copy via browser clipboard (Streamlit buttons cannot copy by themselves)."""
+    safe_id = element_key.replace(":", "_").replace("-", "_")
+    payload = json.dumps(text, ensure_ascii=False)
+    components.html(
+        f"""
+        <button id="copy_{safe_id}" type="button" style="
+            width: 100%;
+            padding: 0.45rem 0.75rem;
+            border: 1px solid rgba(49, 51, 63, 0.2);
+            border-radius: 0.5rem;
+            background: rgb(255, 255, 255);
+            cursor: pointer;
+            font-size: 0.875rem;
+        ">复制 Prompt</button>
+        <script>
+        (function() {{
+            const btn = document.getElementById("copy_{safe_id}");
+            btn.addEventListener("click", function() {{
+                navigator.clipboard.writeText({payload}).then(function() {{
+                    btn.innerText = "已复制 ✓";
+                    setTimeout(function() {{ btn.innerText = "复制 Prompt"; }}, 2000);
+                }}).catch(function() {{
+                    btn.innerText = "复制失败，请用下方文本";
+                }});
+            }});
+        }})();
+        </script>
+        """,
+        height=52,
+    )
+
+
+def _disposition_selector(service: ReviewService, hit: CandidateHit) -> None:
+    current = service.get_disposition_kind(hit.stock_key)
+    st.caption("标记（三选一，可随时修改）")
+    cols = st.columns(len(DISPOSITION_KINDS))
+    for col, kind in zip(cols, DISPOSITION_KINDS, strict=True):
+        with col:
+            label = service.disposition_label(kind)
+            btn_type = "primary" if current == kind else "secondary"
+            if st.button(
+                label,
+                key=f"disp-{kind}-{hit.stock_key}",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                if current != kind:
+                    service.set_disposition(hit, kind)
+                    st.toast(f"已标记为「{label}」")
+                    st.rerun()
+    if current is None:
+        st.caption("当前未标记")
+
+
+def _disposition_rows(service: ReviewService, kind: str) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for entry in service.list_dispositions(kind):
+        row: dict[str, object] = {
+            "股票": f"{entry.name} ({entry.stock_key})",
+            "标记时间": entry.set_at.strftime("%Y-%m-%d %H:%M"),
+        }
+        if kind == DispositionKind.TOO_EXPENSIVE and entry.reference_price is not None:
+            row["标记时股价"] = f"{entry.reference_price:.2f}"
+            row["再推送阈值"] = f"{service.too_expensive_threshold(entry.reference_price):.2f}"
+        if entry.release_at is not None:
+            row["最早再推送"] = entry.release_at.strftime("%Y-%m-%d")
+        rows.append(row)
+    return rows
 
 
 def main() -> None:
     st.set_page_config(page_title="stock-mining 审阅", layout="wide")
     service = ReviewService.from_project_root(ROOT)
-    service.release_expired_blacklist()
+    service.release_expired_dispositions()
 
     page = st.sidebar.radio(
         "页面",
-        ["今日候选", "粘贴分析", "待默许队列", "黑名单", "已研究"],
+        ["今日候选", "粘贴分析", "我的标记"],
     )
 
     if page == "今日候选":
         _page_candidates(service)
     elif page == "粘贴分析":
         _page_paste(service)
-    elif page == "待默许队列":
-        _page_pending(service)
-    elif page == "黑名单":
-        _page_blacklist(service)
     else:
-        _page_studied(service)
+        _page_my_marks(service)
 
 
 def _page_candidates(service: ReviewService) -> None:
     st.header("今日候选")
-    candidates = service.load_candidates()
+    json_path = service.results_dir / "candidates.json"
+    if not json_path.exists():
+        st.info("暂无候选，请先运行 daily_screen.py")
+        return
+
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    candidates = [CandidateHit.from_dict(item) for item in payload.get("candidates", [])]
     if not candidates:
         st.info("暂无候选，请先运行 daily_screen.py")
         return
 
+    saved_top_n = payload.get("top_n")
+    if saved_top_n is not None:
+        st.warning(
+            f"当前结果文件带有 top_n={saved_top_n} 截断。"
+            "请重新运行 `python3 scripts/daily_screen.py`（不要加 --top-n）以加载全部命中。"
+        )
+    st.caption(f"共 {len(candidates)} 只（全部过滤命中）")
+
     for hit in candidates:
-        cols = st.columns([3, 1, 1, 1])
-        with cols[0]:
+        st.divider()
+        header_cols = st.columns([3, 2])
+        with header_cols[0]:
             st.subheader(f"{hit.name} ({hit.market.value.upper()}:{hit.code})")
             st.write(f"轨道: {hit.track} | 分数: {hit.score:.1f}")
             st.json(hit.metrics, expanded=False)
@@ -52,19 +143,18 @@ def _page_candidates(service: ReviewService) -> None:
             if cached:
                 st.success("已有有效定性缓存")
                 st.table(cached)
-        with cols[1]:
-            if st.button("复制 Prompt", key=f"prompt-{hit.stock_key}"):
-                st.session_state["selected_hit"] = hit.to_dict()
-                st.session_state["prompt_text"] = service.build_prompt(hit)
-        with cols[2]:
-            reason = st.text_input("黑名单原因", key=f"reason-{hit.stock_key}")
-            if st.button("加入黑名单", key=f"black-{hit.stock_key}"):
-                service.add_blacklist(hit, reason or "手动加入")
-                st.warning("已加入黑名单")
-        with cols[3]:
-            if st.button("标记已研究", key=f"study-{hit.stock_key}"):
-                service.mark_studied(hit)
-                st.info("已标记，30天内不再推荐")
+        with header_cols[1]:
+            prompt_text = service.build_prompt(hit)
+            _copy_prompt_button(prompt_text, element_key=f"prompt-{hit.stock_key}")
+            with st.expander("查看 Prompt", expanded=False):
+                st.text_area(
+                    "Prompt 文本",
+                    prompt_text,
+                    height=180,
+                    key=f"prompt-view-{hit.stock_key}",
+                    label_visibility="collapsed",
+                )
+            _disposition_selector(service, hit)
 
 
 def _page_paste(service: ReviewService) -> None:
@@ -82,62 +172,48 @@ def _page_paste(service: ReviewService) -> None:
     st.text_area("Prompt（复制到 Cursor）", prompt, height=220)
     pasted = st.text_area("粘贴 LLM 返回的 Markdown 表格", height=220)
 
-    if st.button("提交待默许"):
+    if st.button("提交分析", type="primary"):
+        if not pasted.strip():
+            st.warning("请先粘贴 Markdown 表格")
+            return
         entry_ids, missing = service.submit_analysis(hit, pasted)
-        st.success(f"已提交 {len(entry_ids)} 条待默许记录")
+        st.success(f"已保存 {len(entry_ids)} 条分析缓存")
         if missing:
             st.error(f"缺少维度: {', '.join(missing)}")
 
 
-def _page_pending(service: ReviewService) -> None:
-    st.header("待默许队列")
-    pending = service.pending_analysis()
-    if not pending:
-        st.info("暂无待默许记录")
-        return
+def _page_my_marks(service: ReviewService) -> None:
+    st.header("我的标记")
+    st.caption("三类标记互斥：每只股票只会出现在其中一个列表中。")
 
-    grouped: dict[str, list] = {}
-    for entry in pending:
-        grouped.setdefault(entry.stock_key, []).append(entry)
+    sections = [
+        (DispositionKind.NOT_INTERESTED, "不感兴趣", False),
+        (DispositionKind.TOO_EXPENSIVE, "价格偏贵", False),
+        (DispositionKind.WATCHLIST, "加入自选", True),
+    ]
 
-    for stock_key, entries in grouped.items():
-        st.subheader(stock_key)
-        for entry in entries:
-            st.write(f"**{entry.dimension_id}**: {entry.content}")
-            cols = st.columns(2)
-            if cols[0].button("默许", key=f"approve-{entry.id}"):
-                service.approve_analysis_entries([entry.id])
-                st.rerun()
-            if cols[1].button("驳回", key=f"reject-{entry.id}"):
-                service.reject_analysis_entries([entry.id])
-                st.rerun()
+    for kind, title, allow_remove in sections:
+        st.subheader(title)
+        entries = service.list_dispositions(kind)
+        rows = _disposition_rows(service, kind)
+        if rows:
+            st.dataframe(rows, use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无记录")
 
-
-def _page_blacklist(service: ReviewService) -> None:
-    st.header("黑名单")
-    entries = service.blacklist_entries()
-    if not entries:
-        st.info("黑名单为空")
-        return
-    for entry in entries:
-        st.write(
-            f"{entry.name} ({entry.stock_key}) | 状态: {entry.status} | "
-            f"释放: {entry.release_at.date()} | 原因: {entry.reason}"
-        )
-
-
-def _page_studied(service: ReviewService) -> None:
-    st.header("已研究记录")
-    entries = service.recommendation_entries()
-    if not entries:
-        st.info("暂无记录")
-        return
-    for entry in entries:
-        cooldown = entry.cooldown_until.date() if entry.cooldown_until else "无"
-        st.write(
-            f"{entry.name} ({entry.stock_key}) | 推荐时间: {entry.recommended_at.date()} | "
-            f"冷却至: {cooldown} | 状态: {entry.status}"
-        )
+        if allow_remove and entries:
+            st.caption("删除自选后，该股票将恢复 daily 推送。")
+            for entry in entries:
+                cols = st.columns([4, 1])
+                cols[0].write(f"{entry.name} ({entry.stock_key})")
+                if cols[1].button(
+                    "删除自选",
+                    key=f"rm-watch-{entry.stock_key}",
+                    type="secondary",
+                ):
+                    service.remove_watchlist(entry.stock_key)
+                    st.toast(f"已移除自选：{entry.name}")
+                    st.rerun()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,9 +18,19 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     app_path = root / "stock_mining" / "web" / "review_app.py"
     python = resolve_python(root)
-    cmd = [python, "-m", "streamlit", "run", str(app_path)]
+    cmd = [
+        python,
+        "-m",
+        "streamlit",
+        "run",
+        str(app_path),
+        "--server.headless",
+        "true",
+    ]
+    env = os.environ.copy()
+    env.setdefault("STREAMLIT_BROWSER_GATHER_USAGE_STATS", "false")
     try:
-        return subprocess.call(cmd, cwd=root)
+        return subprocess.call(cmd, cwd=root, env=env)
     except FileNotFoundError:
         print("未找到 streamlit。请先安装依赖：")
         print(f"  cd {root}")

@@ -14,8 +14,15 @@ from stock_mining.filters.base import Filter
 from stock_mining.filters.registry import build_filters
 from stock_mining.markets.base import Market, normalize_stock_code
 from stock_mining.markets.providers import build_market_providers
-from stock_mining.models import CandidateHit, ScreenHit, ScreeningContext, StockInfo
+from stock_mining.models import CandidateHit, MarketSnapshot, ScreenHit, ScreeningContext, StockInfo
 from stock_mining.pipeline.dedup import filter_candidates
+from stock_mining.pipeline.funnel import (
+    needs_financials,
+    needs_industry_name,
+    partition_filters,
+    passes_filters,
+    passes_without_financials,
+)
 from stock_mining.scoring.engine import compute_score, extract_metrics
 from stock_mining.state.store import UserStateStore
 from stock_mining.utils import is_bj_code, is_st_name, match_industry_return
@@ -25,6 +32,12 @@ from stock_mining.utils import is_bj_code, is_st_name, match_industry_return
 class TrackEvaluator:
     name: str
     filters: list[Filter]
+
+
+@dataclass
+class _FinancialCandidate:
+    stock: StockInfo
+    snapshot: MarketSnapshot
 
 
 class DailyScreener:
@@ -47,6 +60,16 @@ class DailyScreener:
                 self.common_filters + [f for track in self.tracks for f in track.filters]
             )
         )
+        self._common_market, self._common_industry, self._common_financial = partition_filters(
+            self.common_filters
+        )
+        self._track_partitions = {
+            track.name: partition_filters(track.filters) for track in self.tracks
+        }
+        all_filters = self.common_filters + [
+            filter_ for track in self.tracks for filter_ in track.filters
+        ]
+        self._needs_industry_field = needs_industry_name(all_filters)
 
     @classmethod
     def from_yaml(
@@ -65,6 +88,7 @@ class DailyScreener:
             cache_dir=config.fetch.cache_dir,
             cache_ttl_hours=config.fetch.cache_ttl_hours,
             request_interval_sec=config.fetch.request_interval_sec,
+            snapshot_workers=config.fetch.snapshot_workers,
         )
         common_filters = build_filters(config.common_filters or config.filters)
         tracks = [
@@ -107,39 +131,143 @@ class DailyScreener:
     def _build_context(
         self,
         stock: StockInfo,
-        market_snapshot,
+        market_snapshot: MarketSnapshot | None,
         industry_returns: dict[str, float],
         financials=None,
-        matched_track: str | None = None,
     ) -> ScreeningContext:
         industry_return = match_industry_return(
             market_snapshot.industry if market_snapshot else None,
             industry_returns,
         )
-        return ScreeningContext(
-            stock=StockInfo(
+        stock_info = stock
+        if market_snapshot is not None:
+            stock_info = StockInfo(
                 code=market_snapshot.code,
                 name=market_snapshot.name,
                 market=stock.market,
-            ),
+            )
+        return ScreeningContext(
+            stock=stock_info,
             market=market_snapshot,
             financials=financials,
             industry_return_3y_pct=industry_return,
-            matched_track=matched_track,
         )
 
-    def _passes_filters(self, ctx: ScreeningContext, filters: list[Filter]) -> bool:
-        return all(filter_.evaluate(ctx).passed for filter_ in filters)
+    def _resolve_snapshot(
+        self,
+        provider: MarketDataProvider,
+        stock: StockInfo,
+        bulk_snapshots: dict[str, MarketSnapshot],
+    ) -> MarketSnapshot | None:
+        snapshot = bulk_snapshots.get(stock.code)
+        if snapshot is not None:
+            return snapshot
+        if stock.market == Market.HK:
+            return provider.fetch_stock_snapshot(stock.code, stock.name)
+        return None
+
+    def _track_passes_without_financials(
+        self,
+        ctx: ScreeningContext,
+        track: TrackEvaluator,
+    ) -> bool:
+        market_filters, industry_filters, _ = self._track_partitions[track.name]
+        if market_filters and not passes_without_financials(ctx, market_filters):
+            return False
+        if industry_filters and not passes_filters(ctx, industry_filters):
+            return False
+        return True
+
+    def _needs_financial_fetch(self, ctx: ScreeningContext) -> bool:
+        if self._common_financial:
+            return True
+        for track in self.tracks:
+            if not needs_financials(track.filters):
+                continue
+            if self._track_passes_without_financials(ctx, track):
+                return True
+        return False
 
     def _match_track(self, ctx: ScreeningContext) -> str | None:
         if not self.tracks:
-            return "default" if self._passes_filters(ctx, self.common_filters) else None
-        if not self._passes_filters(ctx, self.common_filters):
+            if passes_filters(ctx, self.common_filters):
+                return "default"
+            return None
+        if not passes_filters(ctx, self.common_filters):
             return None
         for track in self.tracks:
-            if self._passes_filters(ctx, track.filters):
+            if passes_filters(ctx, track.filters):
                 return track.name
         return None
+
+    def _candidate_hit(self, ctx: ScreeningContext, track: str, market: Market) -> CandidateHit:
+        score, components = compute_score(ctx, self.config.scoring)
+        metrics = extract_metrics(ctx, score, components)
+        metrics["track"] = track
+        return CandidateHit(
+            code=ctx.stock.code,
+            name=ctx.stock.name,
+            market=market,
+            track=track,
+            score=score,
+            metrics=metrics,
+        )
+
+    def _screen_market_stage(
+        self,
+        provider: MarketDataProvider,
+        universe: list[StockInfo],
+        bulk_snapshots: dict[str, MarketSnapshot],
+        industry_returns: dict[str, float],
+    ) -> tuple[list[CandidateHit], list[_FinancialCandidate]]:
+        immediate_hits: list[CandidateHit] = []
+        financial_queue: list[_FinancialCandidate] = []
+
+        for stock in tqdm(universe, desc=f"market-filter-{provider.market.value}"):
+            snapshot = self._resolve_snapshot(provider, stock, bulk_snapshots)
+            if snapshot is None:
+                continue
+
+            ctx = self._build_context(stock, snapshot, industry_returns)
+            if self._common_market and not passes_filters(ctx, self._common_market):
+                continue
+
+            if self._needs_industry_field and snapshot.industry is None:
+                snapshot = provider.enrich_snapshot_industry(snapshot)
+                ctx = self._build_context(stock, snapshot, industry_returns)
+
+            if self._common_industry and not passes_filters(ctx, self._common_industry):
+                continue
+
+            if self._needs_financial_fetch(ctx):
+                financial_queue.append(_FinancialCandidate(stock=stock, snapshot=snapshot))
+                continue
+
+            matched_track = self._match_track(ctx)
+            if matched_track is not None:
+                immediate_hits.append(
+                    self._candidate_hit(ctx, matched_track, stock.market)
+                )
+
+        return immediate_hits, financial_queue
+
+    def _evaluate_financial_candidate(
+        self,
+        provider: MarketDataProvider,
+        candidate: _FinancialCandidate,
+        industry_returns: dict[str, float],
+    ) -> CandidateHit | None:
+        financials = provider.fetch_financials(candidate.stock.code)
+        ctx = self._build_context(
+            candidate.stock,
+            candidate.snapshot,
+            industry_returns,
+            financials,
+        )
+        matched_track = self._match_track(ctx)
+        if matched_track is None:
+            return None
+        return self._candidate_hit(ctx, matched_track, candidate.stock.market)
 
     def run(self) -> list[CandidateHit]:
         all_hits: list[CandidateHit] = []
@@ -158,34 +286,29 @@ class DailyScreener:
                 else {}
             )
 
-            candidates = list(universe)
+            universe_codes = {stock.code for stock in universe}
+            bulk_snapshots = provider.fetch_market_snapshots(universe_codes)
+            immediate_hits, financial_queue = self._screen_market_stage(
+                provider,
+                universe,
+                bulk_snapshots,
+                industry_returns,
+            )
+            all_hits.extend(immediate_hits)
 
             workers = max(1, self.config.fetch.financial_workers)
-
-            def evaluate_one(stock: StockInfo) -> CandidateHit | None:
-                market_snapshot = provider.fetch_stock_snapshot(stock.code, stock.name)
-                financials = provider.fetch_financials(stock.code)
-                ctx = self._build_context(stock, market_snapshot, industry_returns, financials)
-                matched_track = self._match_track(ctx)
-                if matched_track is None:
-                    return None
-                score, components = compute_score(ctx, self.config.scoring)
-                metrics = extract_metrics(ctx, score, components)
-                metrics["track"] = matched_track
-                return CandidateHit(
-                    code=ctx.stock.code,
-                    name=ctx.stock.name,
-                    market=stock.market,
-                    track=matched_track,
-                    score=score,
-                    metrics=metrics,
-                )
+            label = f"financial-{market.value}"
 
             with ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = {
-                    executor.submit(evaluate_one, stock): stock for stock in candidates
+                    executor.submit(
+                        self._evaluate_financial_candidate,
+                        provider,
+                        candidate,
+                        industry_returns,
+                    ): candidate
+                    for candidate in financial_queue
                 }
-                label = f"screening-{market.value}"
                 for future in tqdm(as_completed(futures), total=len(futures), desc=label):
                     result = future.result()
                     if result is not None:
@@ -199,7 +322,7 @@ class DailyScreener:
             trimmed = filter_candidates(
                 trimmed,
                 self.state_store,
-                cooldown_days=self.config.state.recommendation_cooldown_days,
+                drop_ratio=self.config.state.too_expensive_drop_ratio,
             )
         return trimmed
 

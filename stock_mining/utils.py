@@ -50,7 +50,11 @@ def parse_percent(value: object) -> float | None:
 def parse_number(value: object) -> float | None:
     if value is None:
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, float):
+        if value != value:
+            return None
+        return value
+    if isinstance(value, int):
         return float(value)
     text = str(value).strip()
     if not text or text.lower() in {"false", "nan", "none", "--"}:
@@ -71,6 +75,22 @@ def parse_number(value: object) -> float | None:
 
 def parse_money_to_yuan(value: object) -> float | None:
     return parse_number(value)
+
+
+def coalesce_row(row: object, *keys: str) -> object | None:
+    getter = getattr(row, "get", None)
+    if getter is None:
+        return None
+    for key in keys:
+        value = getter(key)
+        if value is None:
+            continue
+        if isinstance(value, float) and value != value:
+            continue
+        if isinstance(value, str) and value.strip().lower() in {"", "nan", "none", "--"}:
+            continue
+        return value
+    return None
 
 
 def annual_window(

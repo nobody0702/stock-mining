@@ -11,7 +11,7 @@ from stock_mining.data.cache import SqliteCache, deserialize_financials, seriali
 from stock_mining.data.http_retry import call_with_retry
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct, normalize_stock_code
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
-from stock_mining.utils import parse_money_to_yuan, parse_number, parse_percent, parse_report_date
+from stock_mining.utils import coalesce_row, parse_money_to_yuan, parse_number, parse_percent, parse_report_date
 
 TRADING_DAYS_52W = 260
 
@@ -84,10 +84,16 @@ class AkshareHkConnectProvider(MarketDataProvider):
     def fetch_dividend_map(self) -> dict[str, float]:
         return {}
 
-    def fetch_market_snapshots(self) -> dict[str, MarketSnapshot]:
+    def fetch_market_snapshots(
+        self,
+        codes: set[str] | None = None,
+    ) -> dict[str, MarketSnapshot]:
+        stocks = self.list_stocks()
+        if codes is not None:
+            stocks = [stock for stock in stocks if stock.code in codes]
         return {
             stock.code: MarketSnapshot(code=stock.code, name=stock.name, market=Market.HK)
-            for stock in self.list_stocks()
+            for stock in stocks
         }
 
     def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
@@ -204,25 +210,31 @@ class AkshareHkConnectProvider(MarketDataProvider):
 
         annual: list[AnnualMetrics] = []
         for _, row in df.iterrows():
-            report_date = parse_report_date(row.get("报告期") or row.get("REPORT_DATE"))
+            report_date = parse_report_date(coalesce_row(row, "报告期", "REPORT_DATE"))
             if report_date is None:
                 continue
             annual.append(
                 AnnualMetrics(
                     report_date=report_date,
                     net_profit_yuan=parse_money_to_yuan(
-                        row.get("净利润") or row.get("HOLDER_PROFIT")
+                        coalesce_row(row, "净利润", "HOLDER_PROFIT")
                     ),
                     revenue_yuan=parse_money_to_yuan(
-                        row.get("营业收入") or row.get("OPERATE_INCOME")
+                        coalesce_row(row, "营业收入", "OPERATE_INCOME")
                     ),
-                    gross_margin_pct=parse_percent(row.get("销售毛利率") or row.get("GROSS_PROFIT_RATIO")),
-                    net_margin_pct=parse_percent(row.get("销售净利率") or row.get("NET_PROFIT_RATIO")),
+                    gross_margin_pct=parse_percent(
+                        coalesce_row(row, "销售毛利率", "GROSS_PROFIT_RATIO")
+                    ),
+                    net_margin_pct=parse_percent(
+                        coalesce_row(row, "销售净利率", "NET_PROFIT_RATIO")
+                    ),
                     operating_cashflow_yuan=parse_money_to_yuan(
-                        row.get("经营现金流量净额") or row.get("NETCASH_OPERATE")
+                        coalesce_row(row, "经营现金流量净额", "NETCASH_OPERATE")
                     ),
-                    debt_ratio_pct=parse_percent(row.get("资产负债率") or row.get("DEBT_ASSET_RATIO")),
-                    roe_pct=parse_percent(row.get("净资产收益率") or row.get("ROE")),
+                    debt_ratio_pct=parse_percent(
+                        coalesce_row(row, "资产负债率", "DEBT_ASSET_RATIO")
+                    ),
+                    roe_pct=parse_percent(coalesce_row(row, "净资产收益率", "ROE")),
                 )
             )
         annual.sort(key=lambda item: item.report_date)

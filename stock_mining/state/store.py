@@ -6,6 +6,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from stock_mining.state.disposition import (
+    DEFAULT_SUPPRESS_DAYS,
+    DEFAULT_TOO_EXPENSIVE_DROP_RATIO,
+    DispositionKind,
+    StockDispositionEntry,
+    should_suppress_daily_push,
+)
+
 
 @dataclass(frozen=True)
 class BlacklistEntry:
@@ -89,6 +97,17 @@ class UserStateStore:
                     approved_at TEXT,
                     expires_at TEXT,
                     status TEXT NOT NULL DEFAULT 'pending'
+                );
+                CREATE TABLE IF NOT EXISTS stock_dispositions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    stock_key TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    market TEXT NOT NULL,
+                    disposition TEXT NOT NULL,
+                    reference_price REAL,
+                    set_at TEXT NOT NULL,
+                    release_at TEXT,
+                    status TEXT NOT NULL DEFAULT 'active'
                 );
                 """
             )
@@ -339,6 +358,159 @@ class UserStateStore:
                 (stock_key,),
             ).fetchall()
         return [self._row_to_analysis(row) for row in rows]
+
+    def set_stock_disposition(
+        self,
+        stock_key: str,
+        name: str,
+        market: str,
+        disposition: str,
+        *,
+        reference_price: float | None = None,
+        suppress_days: int = DEFAULT_SUPPRESS_DAYS,
+        now: datetime | None = None,
+    ) -> None:
+        now = now or datetime.now()
+        release_at: datetime | None = None
+        ref_price = reference_price
+
+        if disposition == DispositionKind.NOT_INTERESTED:
+            release_at = now + timedelta(days=suppress_days)
+            ref_price = None
+        elif disposition == DispositionKind.TOO_EXPENSIVE:
+            release_at = now + timedelta(days=suppress_days)
+        elif disposition == DispositionKind.WATCHLIST:
+            release_at = None
+            ref_price = None
+        else:
+            raise ValueError(f"Unknown disposition: {disposition}")
+
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO stock_dispositions(
+                    stock_key, name, market, disposition, reference_price, set_at, release_at, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
+                ON CONFLICT(stock_key) DO UPDATE SET
+                    name=excluded.name,
+                    market=excluded.market,
+                    disposition=excluded.disposition,
+                    reference_price=excluded.reference_price,
+                    set_at=excluded.set_at,
+                    release_at=excluded.release_at,
+                    status='active'
+                """,
+                (
+                    stock_key,
+                    name,
+                    market,
+                    disposition,
+                    ref_price,
+                    now.isoformat(),
+                    release_at.isoformat() if release_at else None,
+                ),
+            )
+
+    def clear_stock_disposition(self, stock_key: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE stock_dispositions SET status='removed' WHERE stock_key=? AND status='active'",
+                (stock_key,),
+            )
+
+    def get_stock_disposition(
+        self,
+        stock_key: str,
+        *,
+        active_only: bool = True,
+    ) -> StockDispositionEntry | None:
+        with self._connect() as conn:
+            if active_only:
+                row = conn.execute(
+                    "SELECT * FROM stock_dispositions WHERE stock_key=? AND status='active'",
+                    (stock_key,),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT * FROM stock_dispositions WHERE stock_key=? ORDER BY set_at DESC LIMIT 1",
+                    (stock_key,),
+                ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_disposition(row)
+
+    def list_stock_dispositions(
+        self,
+        *,
+        disposition: str | None = None,
+        active_only: bool = True,
+    ) -> list[StockDispositionEntry]:
+        query = "SELECT * FROM stock_dispositions"
+        clauses: list[str] = []
+        params: list[Any] = []
+        if active_only:
+            clauses.append("status='active'")
+        if disposition is not None:
+            clauses.append("disposition=?")
+            params.append(disposition)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY set_at DESC"
+        with self._connect() as conn:
+            rows = conn.execute(query, params).fetchall()
+        return [self._row_to_disposition(row) for row in rows]
+
+    def should_suppress_daily_push(
+        self,
+        stock_key: str,
+        current_price: float | None,
+        *,
+        now: datetime | None = None,
+        drop_ratio: float = DEFAULT_TOO_EXPENSIVE_DROP_RATIO,
+    ) -> bool:
+        now = now or datetime.now()
+        entry = self.get_stock_disposition(stock_key)
+        return should_suppress_daily_push(
+            entry,
+            current_price=current_price,
+            now=now,
+            drop_ratio=drop_ratio,
+        )
+
+    def release_expired_dispositions(self, *, now: datetime | None = None) -> int:
+        now = now or datetime.now()
+        with self._connect() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE stock_dispositions SET status='expired'
+                WHERE status='active'
+                  AND disposition IN (?, ?)
+                  AND release_at IS NOT NULL
+                  AND release_at <= ?
+                """,
+                (
+                    DispositionKind.NOT_INTERESTED,
+                    DispositionKind.TOO_EXPENSIVE,
+                    now.isoformat(),
+                ),
+            )
+            return cursor.rowcount
+
+    @staticmethod
+    def _row_to_disposition(row: sqlite3.Row) -> StockDispositionEntry:
+        release = row["release_at"]
+        ref = row["reference_price"]
+        return StockDispositionEntry(
+            id=row["id"],
+            stock_key=row["stock_key"],
+            name=row["name"],
+            market=row["market"],
+            disposition=row["disposition"],
+            reference_price=float(ref) if ref is not None else None,
+            set_at=datetime.fromisoformat(row["set_at"]),
+            release_at=datetime.fromisoformat(release) if release else None,
+            status=row["status"],
+        )
 
     @staticmethod
     def _row_to_blacklist(row: sqlite3.Row) -> BlacklistEntry:

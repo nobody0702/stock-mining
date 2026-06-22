@@ -45,3 +45,11 @@ class FilterGroupAnyFilter(Filter):
             for group in self.groups
             for filter_ in group
         )
+
+    @property
+    def requires_industry_name(self) -> bool:
+        return any(
+            filter_.requires_industry_name
+            for group in self.groups
+            for filter_ in group
+        )

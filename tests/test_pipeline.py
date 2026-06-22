@@ -82,8 +82,14 @@ class FakeProvider(MarketDataProvider):
     def list_stocks(self) -> list[StockInfo]:
         return [StockInfo("688001", "优质样本", Market.A)]
 
-    def fetch_market_snapshots(self) -> dict[str, MarketSnapshot]:
-        return {"688001": self.snapshot}
+    def fetch_market_snapshots(
+        self,
+        codes: set[str] | None = None,
+    ) -> dict[str, MarketSnapshot]:
+        snapshots = {"688001": self.snapshot}
+        if codes is None:
+            return snapshots
+        return {code: snapshots[code] for code in codes if code in snapshots}
 
     def fetch_dividend_map(self) -> dict[str, float]:
         return {"688001": 3.0}

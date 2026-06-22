@@ -60,4 +60,5 @@ fetch:
   cache_dir: data/cache
   cache_ttl_hours: 12
   financial_workers: 2
+  snapshot_workers: 8
   request_interval_sec: 0.25

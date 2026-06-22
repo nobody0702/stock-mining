@@ -20,7 +20,10 @@ class MarketDataProvider(ABC):
         ...
 
     @abstractmethod
-    def fetch_market_snapshots(self) -> dict[str, MarketSnapshot]:
+    def fetch_market_snapshots(
+        self,
+        codes: set[str] | None = None,
+    ) -> dict[str, MarketSnapshot]:
         ...
 
     @abstractmethod
@@ -34,3 +37,6 @@ class MarketDataProvider(ABC):
     @abstractmethod
     def fetch_financials(self, code: str) -> StockFinancials:
         ...
+
+    def enrich_snapshot_industry(self, snapshot: MarketSnapshot) -> MarketSnapshot:
+        return snapshot

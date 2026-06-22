@@ -24,6 +24,10 @@ class Filter(ABC):
     def requires_industry_returns(self) -> bool:
         return False
 
+    @property
+    def requires_industry_name(self) -> bool:
+        return False
+
     @abstractmethod
     def evaluate(self, ctx: ScreeningContext) -> FilterResult:
         ...

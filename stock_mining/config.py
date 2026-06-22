@@ -24,6 +24,7 @@ class FetchConfig:
     cache_dir: str = "data/cache"
     cache_ttl_hours: int = 12
     financial_workers: int = 4
+    snapshot_workers: int = 8
     request_interval_sec: float = 0.15
 
 
@@ -31,11 +32,8 @@ class FetchConfig:
 class ScoringConfig:
     weights: dict[str, float] = field(
         default_factory=lambda: {
-            "near_low": 0.3,
-            "drawdown": 0.2,
-            "roe": 0.2,
-            "growth": 0.2,
-            "cash_quality": 0.1,
+            "cheap": 0.5,
+            "stability": 0.5,
         }
     )
 
@@ -54,6 +52,8 @@ class StateConfig:
     db_path: str = "data/state/user_state.sqlite3"
     blacklist_release_days: int = 180
     recommendation_cooldown_days: int = 30
+    disposition_suppress_days: int = 90
+    too_expensive_drop_ratio: float = 0.10
 
 
 @dataclass
@@ -129,6 +129,7 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
             cache_dir=str(fetch_raw.get("cache_dir", "data/cache")),
             cache_ttl_hours=int(fetch_raw.get("cache_ttl_hours", 12)),
             financial_workers=int(fetch_raw.get("financial_workers", 4)),
+            snapshot_workers=int(fetch_raw.get("snapshot_workers", 8)),
             request_interval_sec=float(fetch_raw.get("request_interval_sec", 0.15)),
         ),
         output=OutputConfig(
@@ -147,6 +148,8 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
             db_path=str(state_raw.get("db_path", "data/state/user_state.sqlite3")),
             blacklist_release_days=int(state_raw.get("blacklist_release_days", 180)),
             recommendation_cooldown_days=int(state_raw.get("recommendation_cooldown_days", 30)),
+            disposition_suppress_days=int(state_raw.get("disposition_suppress_days", 90)),
+            too_expensive_drop_ratio=float(state_raw.get("too_expensive_drop_ratio", 0.10)),
         ),
     )
 

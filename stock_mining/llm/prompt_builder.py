@@ -13,6 +13,11 @@ def build_stock_prompt(
         "请用一个小学生也能懂的话来回答，不要堆砌术语。",
         "请严格输出 Markdown 表格，第一列必须是「维度」，第二列是「内容」。",
         "",
+        "打分规则（每个维度都必须遵守）：",
+        "- 「内容」列必须以「N分，」开头并接说明文字，N 为 1-5 的整数；说明用几句大白话写清楚，不要只写一句。",
+        "- 除「最可能出什么问题」外：分数越高表示该维度越正面、越好。",
+        "- 「最可能出什么问题」：分数越高表示风险越大、不确定性越高。",
+        "",
         "需要分析的维度如下：",
     ]
     for dimension in config.dimensions:
@@ -24,13 +29,15 @@ def build_stock_prompt(
         for key, value in sorted(hit.metrics.items()):
             lines.append(f"- {key}: {value}")
 
+    example_rows = [f"| {dimension.label} | N分，说明... |" for dimension in config.dimensions]
     lines.extend(
         [
             "",
             "输出示例：",
             "| 维度 | 内容 |",
             "| --- | --- |",
-            "| 怎么赚钱（一句话） | ... |",
+            *example_rows[:3],
+            "| ... | ... |",
         ]
     )
     return "\n".join(lines)

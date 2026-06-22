@@ -95,11 +95,8 @@ tracks:
 
 scoring:
   weights:
-    near_low: 0.3
-    drawdown: 0.2
-    roe: 0.2
-    growth: 0.2
-    cash_quality: 0.1
+    cheap: 0.5
+    stability: 0.5
 
 output:
   directory: data/results
@@ -110,12 +107,13 @@ output:
 
 state:
   db_path: data/state/user_state.sqlite3
-  blacklist_release_days: 180
-  recommendation_cooldown_days: 30
+  disposition_suppress_days: 90
+  too_expensive_drop_ratio: 0.10
 
 fetch:
   use_cache: true
   cache_dir: data/cache
   cache_ttl_hours: 12
-  financial_workers: 2
+  financial_workers: 4
+  snapshot_workers: 8
   request_interval_sec: 0.25

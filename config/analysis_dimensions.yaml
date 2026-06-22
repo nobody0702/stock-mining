@@ -1,27 +1,27 @@
 dimensions:
   - id: business_model
-    label: 怎么赚钱（一句话）
-    hint: 用卖什么、卖给谁、怎么收费说清楚
+    label: 怎么赚钱（1-5分）
+    hint: 用卖什么、卖给谁、怎么收费说清楚；分数越高商业模式越清晰、越可持续
     ttl_days: 90
   - id: moat
-    label: 护城河有多深（1-5分+一句话）
-    hint: 竞争对手难不难抄，未来会不会更宽
+    label: 护城河有多深（1-5分）
+    hint: 竞争对手难不难抄，未来会不会更宽；分数越高护城河越深
     ttl_days: 90
   - id: management
-    label: 管理层靠不靠谱
-    hint: 老板和团队是否值得长期信任
+    label: 管理层靠不靠谱（1-5分）
+    hint: 老板和团队是否值得长期信任；分数越高越靠谱
     ttl_days: 180
   - id: growth_story
-    label: 未来还能不能长大
-    hint: 市场空间和公司增长点
+    label: 未来还能不能长大（1-5分）
+    hint: 市场空间和公司增长点；分数越高成长空间越大
     ttl_days: 60
   - id: why_cheap
-    label: 为什么现在便宜
-    hint: 是情绪错杀还是基本面真的坏了
+    label: 为什么现在便宜（1-5分）
+    hint: 是情绪错杀还是基本面真的坏了；分数越高越像被错杀的便宜，越低越像基本面真的坏了
     ttl_days: 30
   - id: risk
-    label: 最可能出什么问题
-    hint: 最大的风险和不确定性
+    label: 最可能出什么问题（1-5分）
+    hint: 最大的风险和不确定性；分数越高表示风险越大
     ttl_days: 30
 
 prompt:

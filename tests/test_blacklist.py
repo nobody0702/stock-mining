@@ -26,12 +26,12 @@ def _hit(code: str = "688001") -> CandidateHit:
     )
 
 
-def test_blacklist_blocks_candidate(store):
+def test_blacklist_legacy_state_only(store):
     hit = _hit()
     entry_id = store.add_blacklist_pending(hit.stock_key, hit.name, hit.market.value, "测试", 30)
     store.approve_blacklist(entry_id)
     assert store.is_blacklisted(hit.stock_key)
-    assert filter_candidates([hit], store, cooldown_days=30) == []
+    assert filter_candidates([hit], store) == [hit]
 
 
 def test_blacklist_releases_after_expiry(store):
@@ -55,7 +55,18 @@ def test_recommendation_cooldown(store):
     hit = _hit()
     store.mark_studied(hit.stock_key, hit.name, hit.market.value, cooldown_days=30)
     assert store.is_in_recommendation_cooldown(hit.stock_key, cooldown_days=30)
-    assert filter_candidates([hit], store, cooldown_days=30) == []
+
+
+def test_disposition_blocks_dedup(store):
+    hit = _hit()
+    store.set_stock_disposition(
+        hit.stock_key,
+        hit.name,
+        hit.market.value,
+        "not_interested",
+        suppress_days=90,
+    )
+    assert filter_candidates([hit], store) == []
 
 
 def test_analysis_pending_to_approved(store):

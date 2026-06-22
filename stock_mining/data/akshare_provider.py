@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
 
 import akshare as ak
 import pandas as pd
+from tqdm import tqdm
 
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
@@ -12,6 +14,7 @@ from stock_mining.data.http_retry import call_with_retry
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import (
+    coalesce_row,
     normalize_code,
     parse_money_to_yuan,
     parse_number,
@@ -21,6 +24,7 @@ from stock_mining.utils import (
 
 FHPS_REPORT_DATES = ("20251231", "20250630", "20241231", "20240630")
 TRADING_DAYS_52W = 260
+HIST_LOOKBACK_DAYS = 400
 
 
 class AkshareDataProvider(MarketDataProvider):
@@ -38,14 +42,18 @@ class AkshareDataProvider(MarketDataProvider):
         cache_ttl_hours: int = 12,
         request_interval_sec: float = 0.15,
         network_retries: int = 5,
+        snapshot_workers: int = 8,
     ) -> None:
         self.request_interval_sec = request_interval_sec
         self.network_retries = network_retries
+        self.snapshot_workers = max(1, snapshot_workers)
         self._last_request_at = 0.0
         self.cache = (
             SqliteCache(cache_dir, ttl_hours=cache_ttl_hours) if use_cache else None
         )
         self._dividend_map: dict[str, float] | None = None
+        self._bulk_snapshots: dict[str, MarketSnapshot] | None = None
+        self._snapshot_payloads: dict[str, dict] | None = None
 
     def _throttle(self) -> None:
         if self.request_interval_sec <= 0:
@@ -105,21 +113,278 @@ class AkshareDataProvider(MarketDataProvider):
             raise last_error
         return {}
 
-    def fetch_market_snapshots(self) -> dict[str, MarketSnapshot]:
-        """Build partial snapshots; call fetch_stock_snapshot() for full enrichment."""
+    def fetch_market_snapshots(
+        self,
+        codes: set[str] | None = None,
+    ) -> dict[str, MarketSnapshot]:
+        """Bulk spot + parallel 52-week stats for the A-share universe."""
+        if self._bulk_snapshots is not None and codes is None:
+            return self._bulk_snapshots
+
         dividend_map = self.fetch_dividend_map()
-        stocks = self.list_stocks()
+        spot_df = self._fetch_bulk_spot()
         snapshots: dict[str, MarketSnapshot] = {}
-        for stock in stocks:
-            snapshots[stock.code] = MarketSnapshot(
-                code=stock.code,
-                name=stock.name,
-                dividend_yield_pct=dividend_map.get(stock.code),
+        for _, row in spot_df.iterrows():
+            code = normalize_code(str(row["代码"]))
+            if codes is not None and code not in codes:
+                continue
+            snapshots[code] = MarketSnapshot(
+                code=code,
+                name=str(row["名称"]).strip(),
+                market=Market.A,
+                price=_safe_float(row.get("最新价")),
+                pe=_safe_float(row.get("市盈率-动态")),
+                pb=_safe_float(row.get("市净率")),
+                dividend_yield_pct=dividend_map.get(code),
             )
+
+        self._enrich_52w_parallel(snapshots)
+        self._merge_cached_snapshot_fields(snapshots)
+        if codes is None:
+            self._bulk_snapshots = snapshots
         return snapshots
+
+    def _merge_cached_snapshot_fields(self, snapshots: dict[str, MarketSnapshot]) -> None:
+        payloads = self._ensure_snapshot_payloads()
+        for code, snapshot in snapshots.items():
+            payload = payloads.get(code)
+            if payload is None:
+                continue
+            snapshots[code] = MarketSnapshot(
+                code=snapshot.code,
+                name=snapshot.name,
+                market=snapshot.market,
+                industry=snapshot.industry or (payload.get("industry") or None),
+                price=snapshot.price if snapshot.price is not None else _safe_float(payload.get("price")),
+                low_52w=snapshot.low_52w if snapshot.low_52w is not None else _safe_float(payload.get("low_52w")),
+                high_52w=snapshot.high_52w if snapshot.high_52w is not None else _safe_float(payload.get("high_52w")),
+                drawdown_from_high_pct=snapshot.drawdown_from_high_pct
+                if snapshot.drawdown_from_high_pct is not None
+                else _safe_float(payload.get("drawdown_from_high_pct")),
+                pe=snapshot.pe if snapshot.pe is not None else _safe_float(payload.get("pe")),
+                pb=snapshot.pb if snapshot.pb is not None else _safe_float(payload.get("pb")),
+                ps=snapshot.ps if snapshot.ps is not None else _safe_float(payload.get("ps")),
+                dividend_yield_pct=(
+                    snapshot.dividend_yield_pct
+                    if snapshot.dividend_yield_pct is not None
+                    else _safe_float(payload.get("dividend_yield_pct"))
+                ),
+            )
+
+    def enrich_snapshot_industry(self, snapshot: MarketSnapshot) -> MarketSnapshot:
+        if snapshot.industry is not None:
+            return snapshot
+        industry = self._fetch_industry(snapshot.code)
+        return MarketSnapshot(
+            code=snapshot.code,
+            name=snapshot.name,
+            market=snapshot.market,
+            industry=industry,
+            price=snapshot.price,
+            low_52w=snapshot.low_52w,
+            high_52w=snapshot.high_52w,
+            drawdown_from_high_pct=snapshot.drawdown_from_high_pct,
+            pe=snapshot.pe,
+            pb=snapshot.pb,
+            ps=snapshot.ps,
+            dividend_yield_pct=snapshot.dividend_yield_pct,
+        )
+
+    def _fetch_bulk_spot(self) -> pd.DataFrame:
+        cache_key = "bulk_spot_em"
+        if self.cache is not None:
+            cached = self.cache.get("market", cache_key)
+            if cached is not None:
+                return pd.DataFrame(cached)
+
+        last_error: Exception | None = None
+        for source in ("eastmoney", "sina"):
+            try:
+                self._throttle()
+                if source == "eastmoney":
+                    df = call_with_retry(
+                        ak.stock_zh_a_spot_em,
+                        retries=self.network_retries,
+                    )
+                else:
+                    df = call_with_retry(
+                        ak.stock_zh_a_spot,
+                        retries=max(2, self.network_retries // 2),
+                    )
+                    df = _normalize_sina_spot_df(df)
+                if self.cache is not None:
+                    self.cache.set("market", cache_key, df.to_dict(orient="records"))
+                return df
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                continue
+
+        if self.cache is not None:
+            stale = self.cache.get_allow_stale("market", cache_key)
+            if stale is not None:
+                return pd.DataFrame(stale)
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("无法获取 A 股 bulk spot 数据")
+
+    def _ensure_snapshot_payloads(self) -> dict[str, dict]:
+        if self._snapshot_payloads is not None:
+            return self._snapshot_payloads
+        payloads: dict[str, dict] = {}
+        if self.cache is not None:
+            import json
+            import sqlite3
+
+            namespace = self.cache._ns("market")
+            with sqlite3.connect(self.cache.db_path) as conn:
+                rows = conn.execute(
+                    "SELECT key, payload FROM kv_cache WHERE namespace=? AND key LIKE 'snapshot_%'",
+                    (namespace,),
+                ).fetchall()
+            for key, raw in rows:
+                code = str(key).removeprefix("snapshot_")
+                payloads[code] = json.loads(raw)
+        self._snapshot_payloads = payloads
+        return payloads
+
+    def _load_cached_52w(self, code: str) -> dict[str, float | None] | None:
+        payloads = self._ensure_snapshot_payloads()
+        payload = payloads.get(code)
+        if payload is not None:
+            low = _safe_float(payload.get("low_52w"))
+            high = _safe_float(payload.get("high_52w"))
+            if low is not None and high is not None:
+                return {"low_52w": low, "high_52w": high}
+
+        if self.cache is None:
+            return None
+        cache_key = f"week52_{code}"
+        cached = self.cache.get("market", cache_key) or self.cache.get_allow_stale(
+            "market", cache_key
+        )
+        if cached is None:
+            return None
+        low = _safe_float(cached.get("low_52w"))
+        high = _safe_float(cached.get("high_52w"))
+        if low is None or high is None:
+            return None
+        return {"low_52w": low, "high_52w": high}
+
+    def _enrich_52w_parallel(self, snapshots: dict[str, MarketSnapshot]) -> None:
+        pending: list[str] = []
+        for code, snapshot in snapshots.items():
+            cached = self._load_cached_52w(code)
+            if cached is not None:
+                high_52w = cached.get("high_52w")
+                snapshots[code] = MarketSnapshot(
+                    code=snapshot.code,
+                    name=snapshot.name,
+                    market=snapshot.market,
+                    industry=snapshot.industry,
+                    price=snapshot.price,
+                    low_52w=cached.get("low_52w"),
+                    high_52w=high_52w,
+                    drawdown_from_high_pct=calc_drawdown_from_high_pct(
+                        snapshot.price, high_52w
+                    ),
+                    pe=snapshot.pe,
+                    pb=snapshot.pb,
+                    ps=snapshot.ps,
+                    dividend_yield_pct=snapshot.dividend_yield_pct,
+                )
+                continue
+            if snapshot.low_52w is None or snapshot.high_52w is None:
+                pending.append(code)
+
+        if not pending:
+            return
+
+        workers = min(self.snapshot_workers, len(pending))
+
+        def enrich(code: str) -> tuple[str, dict[str, float | None]]:
+            return code, self._fetch_52w_from_hist(code)
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(enrich, code): code for code in pending}
+            for future in tqdm(
+                as_completed(futures),
+                total=len(futures),
+                desc="52w-enrich",
+                leave=False,
+            ):
+                code, stats = future.result()
+                snapshot = snapshots[code]
+                price = snapshot.price
+                high_52w = stats.get("high_52w")
+                snapshots[code] = MarketSnapshot(
+                    code=snapshot.code,
+                    name=snapshot.name,
+                    market=snapshot.market,
+                    industry=snapshot.industry,
+                    price=price,
+                    low_52w=stats.get("low_52w"),
+                    high_52w=high_52w,
+                    drawdown_from_high_pct=calc_drawdown_from_high_pct(price, high_52w),
+                    pe=snapshot.pe,
+                    pb=snapshot.pb,
+                    ps=snapshot.ps,
+                    dividend_yield_pct=snapshot.dividend_yield_pct,
+                )
+
+    def _fetch_52w_from_hist(self, code: str) -> dict[str, float | None]:
+        cached = self._load_cached_52w(code)
+        if cached is not None:
+            return cached
+
+        cache_key = f"week52_{code}"
+        if self.cache is not None:
+            cached = self.cache.get("market", cache_key)
+            if cached is not None:
+                return {k: _safe_float(v) for k, v in cached.items()}
+
+        self._throttle()
+        start = (date.today() - timedelta(days=HIST_LOOKBACK_DAYS)).strftime("%Y%m%d")
+        end = date.today().strftime("%Y%m%d")
+
+        def _fetch() -> pd.DataFrame:
+            return ak.stock_zh_a_hist(
+                symbol=code,
+                period="daily",
+                start_date=start,
+                end_date=end,
+                adjust="qfq",
+            )
+
+        empty = {"low_52w": None, "high_52w": None}
+        try:
+            df = call_with_retry(_fetch, retries=self.network_retries)
+        except Exception:
+            return empty
+
+        if df is None or df.empty:
+            return empty
+
+        close_col = "收盘" if "收盘" in df.columns else "close"
+        recent = df.tail(TRADING_DAYS_52W)
+        if recent.empty:
+            return empty
+
+        low_52w = float(recent[close_col].min())
+        high_52w = float(recent[close_col].max())
+        result = {"low_52w": low_52w, "high_52w": high_52w}
+        if self.cache is not None:
+            self.cache.set("market", cache_key, result)
+        return result
 
     def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
         code = normalize_code(code)
+        if self._bulk_snapshots is not None and code in self._bulk_snapshots:
+            snapshot = self._bulk_snapshots[code]
+            if snapshot.industry is None:
+                return self.enrich_snapshot_industry(snapshot)
+            return snapshot
+
         cache_key = f"snapshot_{code}"
         if self.cache is not None:
             cached = self.cache.get("market", cache_key)
@@ -174,34 +439,35 @@ class AkshareDataProvider(MarketDataProvider):
         return industry
 
     def _fetch_valuation(self, code: str) -> dict[str, float | None]:
+        stats = self._fetch_52w_from_hist(code)
         self._throttle()
 
         def _fetch() -> pd.DataFrame:
             return ak.stock_value_em(symbol=code)
 
-        df = call_with_retry(_fetch, retries=self.network_retries)
-        if df is None or df.empty:
-            return {
-                "price": None,
-                "low_52w": None,
-                "pe": None,
-                "pb": None,
-                "ps": None,
-            }
+        try:
+            df = call_with_retry(_fetch, retries=self.network_retries)
+        except Exception:
+            df = None
 
-        recent = df.tail(TRADING_DAYS_52W)
-        latest = df.iloc[-1]
-        low_52w = float(recent["当日收盘价"].min()) if not recent.empty else None
-        high_52w = float(recent["当日收盘价"].max()) if not recent.empty else None
-        price = _safe_float(latest.get("当日收盘价"))
+        pe = pb = ps = price = None
+        if df is not None and not df.empty:
+            latest = df.iloc[-1]
+            price = _safe_float(latest.get("当日收盘价"))
+            pe = _safe_float(latest.get("PE(TTM)"))
+            pb = _safe_float(latest.get("市净率"))
+            ps = _safe_float(latest.get("市销率"))
+
+        low_52w = stats.get("low_52w")
+        high_52w = stats.get("high_52w")
         return {
             "price": price,
             "low_52w": low_52w,
             "high_52w": high_52w,
             "drawdown_from_high_pct": calc_drawdown_from_high_pct(price, high_52w),
-            "pe": _safe_float(latest.get("PE(TTM)")),
-            "pb": _safe_float(latest.get("市净率")),
-            "ps": _safe_float(latest.get("市销率")),
+            "pe": pe,
+            "pb": pb,
+            "ps": ps,
         }
 
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
@@ -272,7 +538,11 @@ class AkshareDataProvider(MarketDataProvider):
         def _fetch() -> pd.DataFrame:
             return ak.stock_financial_abstract_ths(symbol=code)
 
-        df = call_with_retry(_fetch, retries=self.network_retries)
+        try:
+            df = call_with_retry(_fetch, retries=self.network_retries)
+        except Exception:
+            return StockFinancials(code=code, market=Market.A, annual=[])
+
         financials = self._parse_financials(code, df)
         if self.cache is not None:
             self.cache.set("financial", code, serialize_financials(financials))
@@ -293,7 +563,7 @@ class AkshareDataProvider(MarketDataProvider):
                     report_date=report_date,
                     net_profit_yuan=parse_money_to_yuan(row.get("净利润")),
                     revenue_yuan=parse_money_to_yuan(
-                        row.get("营业总收入") or row.get("营业收入")
+                        coalesce_row(row, "营业总收入", "营业收入")
                     ),
                     gross_margin_pct=parse_percent(row.get("销售毛利率")),
                     net_margin_pct=parse_percent(row.get("销售净利率")),
@@ -305,6 +575,30 @@ class AkshareDataProvider(MarketDataProvider):
             )
         annual.sort(key=lambda item: item.report_date)
         return StockFinancials(code=code, market=Market.A, annual=annual)
+
+
+def _strip_market_prefix(code: str) -> str:
+    text = str(code).strip().lower()
+    for prefix in ("sh", "sz", "bj"):
+        if text.startswith(prefix):
+            return text[len(prefix):]
+    return text
+
+
+def _normalize_sina_spot_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Map Sina spot columns to the East Money-like schema used downstream."""
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["代码", "名称", "最新价", "市盈率-动态", "市净率"])
+    out = pd.DataFrame(
+        {
+            "代码": df["代码"].map(_strip_market_prefix).map(normalize_code),
+            "名称": df["名称"],
+            "最新价": pd.to_numeric(df["最新价"], errors="coerce"),
+            "市盈率-动态": pd.NA,
+            "市净率": pd.NA,
+        }
+    )
+    return out
 
 
 def _parse_dividend_dataframe(df: pd.DataFrame) -> dict[str, float]:

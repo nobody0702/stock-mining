@@ -15,6 +15,10 @@ class ExcludeIndustryKeywordsFilter(Filter):
         self.name = name
         self.keywords = keywords or []
 
+    @property
+    def requires_industry_name(self) -> bool:
+        return bool(self.keywords)
+
     def evaluate(self, ctx: ScreeningContext) -> FilterResult:
         industry = ctx.market.industry if ctx.market else None
         if industry_matches_keywords(industry, self.keywords):
@@ -39,6 +43,10 @@ class NonDecliningIndustryFilter(Filter):
     @property
     def requires_industry_returns(self) -> bool:
         return not self.skip_if_unavailable
+
+    @property
+    def requires_industry_name(self) -> bool:
+        return True
 
     def evaluate(self, ctx: ScreeningContext) -> FilterResult:
         industry = ctx.market.industry if ctx.market else None
