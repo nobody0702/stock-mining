@@ -1,1 +1,786 @@
-[]
+[
+  {
+    "stock_key": "a:600809",
+    "name": "山西汾酒",
+    "market": "a",
+    "reference_price": 113.28,
+    "set_at": "2026-06-20T06:30:30.193212",
+    "release_at": "2026-09-18T06:30:30.193212"
+  },
+  {
+    "stock_key": "a:001872",
+    "name": "招商港口",
+    "market": "a",
+    "reference_price": 19.43,
+    "set_at": "2026-06-20T06:37:29.964241",
+    "release_at": "2026-09-18T06:37:29.964241"
+  },
+  {
+    "stock_key": "a:000719",
+    "name": "中原传媒",
+    "market": "a",
+    "reference_price": 11.94,
+    "set_at": "2026-06-20T07:25:14.030302",
+    "release_at": "2026-09-18T07:25:14.030302"
+  },
+  {
+    "stock_key": "a:000848",
+    "name": "承德露露",
+    "market": "a",
+    "reference_price": 7.68,
+    "set_at": "2026-06-20T07:25:42.218266",
+    "release_at": "2026-09-18T07:25:42.218266"
+  },
+  {
+    "stock_key": "a:600285",
+    "name": "羚锐制药",
+    "market": "a",
+    "reference_price": 20.12,
+    "set_at": "2026-06-20T07:27:06.379576",
+    "release_at": "2026-09-18T07:27:06.379576"
+  },
+  {
+    "stock_key": "a:603365",
+    "name": "XD水星家",
+    "market": "a",
+    "reference_price": 16.75,
+    "set_at": "2026-06-20T07:28:28.430201",
+    "release_at": "2026-09-18T07:28:28.430201"
+  },
+  {
+    "stock_key": "a:603195",
+    "name": "公牛集团",
+    "market": "a",
+    "reference_price": 39.35,
+    "set_at": "2026-06-20T07:29:45.993659",
+    "release_at": "2026-09-18T07:29:45.993659"
+  },
+  {
+    "stock_key": "a:000513",
+    "name": "丽珠集团",
+    "market": "a",
+    "reference_price": 29.3,
+    "set_at": "2026-06-20T07:31:30.339545",
+    "release_at": "2026-09-18T07:31:30.339545"
+  },
+  {
+    "stock_key": "a:000568",
+    "name": "泸州老窖",
+    "market": "a",
+    "reference_price": 80.93,
+    "set_at": "2026-06-20T07:31:35.996670",
+    "release_at": "2026-09-18T07:31:35.996670"
+  },
+  {
+    "stock_key": "a:000596",
+    "name": "古井贡酒",
+    "market": "a",
+    "reference_price": 81.71,
+    "set_at": "2026-06-20T07:32:59.860414",
+    "release_at": "2026-09-18T07:32:59.860414"
+  },
+  {
+    "stock_key": "a:600600",
+    "name": "青岛啤酒",
+    "market": "a",
+    "reference_price": 53.9,
+    "set_at": "2026-06-20T07:34:55.988730",
+    "release_at": "2026-09-18T07:34:55.988730"
+  },
+  {
+    "stock_key": "a:603556",
+    "name": "海兴电力",
+    "market": "a",
+    "reference_price": 23.12,
+    "set_at": "2026-06-20T07:36:24.057727",
+    "release_at": "2026-09-18T07:36:24.057727"
+  },
+  {
+    "stock_key": "a:600674",
+    "name": "川投能源",
+    "market": "a",
+    "reference_price": 14.31,
+    "set_at": "2026-06-20T07:38:48.977399",
+    "release_at": "2026-09-18T07:38:48.977399"
+  },
+  {
+    "stock_key": "a:001328",
+    "name": "登康口腔",
+    "market": "a",
+    "reference_price": 27.33,
+    "set_at": "2026-06-20T07:41:18.223450",
+    "release_at": "2026-09-18T07:41:18.223450"
+  },
+  {
+    "stock_key": "a:002690",
+    "name": "美亚光电",
+    "market": "a",
+    "reference_price": 14.8,
+    "set_at": "2026-06-20T07:44:22.542455",
+    "release_at": "2026-09-18T07:44:22.542455"
+  },
+  {
+    "stock_key": "a:600897",
+    "name": "厦门空港",
+    "market": "a",
+    "reference_price": 14.87,
+    "set_at": "2026-06-20T07:45:24.631002",
+    "release_at": "2026-09-18T07:45:24.631002"
+  },
+  {
+    "stock_key": "a:001233",
+    "name": "海安集团",
+    "market": "a",
+    "reference_price": 49.05,
+    "set_at": "2026-06-20T07:47:24.631110",
+    "release_at": "2026-09-18T07:47:24.631110"
+  },
+  {
+    "stock_key": "a:301552",
+    "name": "科力装备",
+    "market": "a",
+    "reference_price": 24.5,
+    "set_at": "2026-06-20T07:48:34.392450",
+    "release_at": "2026-09-18T07:48:34.392450"
+  },
+  {
+    "stock_key": "a:600660",
+    "name": "福耀玻璃",
+    "market": "a",
+    "reference_price": 49.95,
+    "set_at": "2026-06-20T07:53:13.646608",
+    "release_at": "2026-09-18T07:53:13.646608"
+  },
+  {
+    "stock_key": "a:300515",
+    "name": "三德科技",
+    "market": "a",
+    "reference_price": 14.49,
+    "set_at": "2026-06-20T21:59:13.473811",
+    "release_at": "2026-09-18T21:59:13.473811"
+  },
+  {
+    "stock_key": "a:002033",
+    "name": "丽江股份",
+    "market": "a",
+    "reference_price": 8.44,
+    "set_at": "2026-06-20T22:00:15.162051",
+    "release_at": "2026-09-18T22:00:15.162051"
+  },
+  {
+    "stock_key": "a:600993",
+    "name": "马应龙",
+    "market": "a",
+    "reference_price": 22.58,
+    "set_at": "2026-06-20T22:00:31.664016",
+    "release_at": "2026-09-18T22:00:31.664016"
+  },
+  {
+    "stock_key": "a:601965",
+    "name": "中国汽研",
+    "market": "a",
+    "reference_price": 12.88,
+    "set_at": "2026-06-20T22:01:20.779080",
+    "release_at": "2026-09-18T22:01:20.779080"
+  },
+  {
+    "stock_key": "a:301327",
+    "name": "华宝新能",
+    "market": "a",
+    "reference_price": 50.16,
+    "set_at": "2026-06-20T22:04:00.566047",
+    "release_at": "2026-09-18T22:04:00.566047"
+  },
+  {
+    "stock_key": "a:300470",
+    "name": "中密控股",
+    "market": "a",
+    "reference_price": 30.2,
+    "set_at": "2026-06-20T22:05:55.488783",
+    "release_at": "2026-09-18T22:05:55.488783"
+  },
+  {
+    "stock_key": "a:603199",
+    "name": "九华旅游",
+    "market": "a",
+    "reference_price": 31.4,
+    "set_at": "2026-06-20T22:07:02.950693",
+    "release_at": "2026-09-18T22:07:02.950693"
+  },
+  {
+    "stock_key": "a:605116",
+    "name": "奥锐特",
+    "market": "a",
+    "reference_price": 19.56,
+    "set_at": "2026-06-20T22:09:28.795727",
+    "release_at": "2026-09-18T22:09:28.795727"
+  },
+  {
+    "stock_key": "a:300832",
+    "name": "新产业",
+    "market": "a",
+    "reference_price": 42.0,
+    "set_at": "2026-06-20T22:11:06.455868",
+    "release_at": "2026-09-18T22:11:06.455868"
+  },
+  {
+    "stock_key": "a:600519",
+    "name": "贵州茅台",
+    "market": "a",
+    "reference_price": 1215.0,
+    "set_at": "2026-06-20T22:12:02.081170",
+    "release_at": "2026-09-18T22:12:02.081170"
+  },
+  {
+    "stock_key": "a:300685",
+    "name": "艾德生物",
+    "market": "a",
+    "reference_price": 16.75,
+    "set_at": "2026-06-20T22:13:00.915257",
+    "release_at": "2026-09-18T22:13:00.915257"
+  },
+  {
+    "stock_key": "a:301509",
+    "name": "金凯生科",
+    "market": "a",
+    "reference_price": 27.24,
+    "set_at": "2026-06-20T22:19:21.308450",
+    "release_at": "2026-09-18T22:19:21.308450"
+  },
+  {
+    "stock_key": "a:688566",
+    "name": "吉贝尔",
+    "market": "a",
+    "reference_price": 25.04,
+    "set_at": "2026-06-20T22:20:55.443307",
+    "release_at": "2026-09-18T22:20:55.443307"
+  },
+  {
+    "stock_key": "a:300119",
+    "name": "瑞普生物",
+    "market": "a",
+    "reference_price": 15.2,
+    "set_at": "2026-06-20T22:21:49.759429",
+    "release_at": "2026-09-18T22:21:49.759429"
+  },
+  {
+    "stock_key": "a:300573",
+    "name": "兴齐眼药",
+    "market": "a",
+    "reference_price": 36.44,
+    "set_at": "2026-06-20T22:23:18.937906",
+    "release_at": "2026-09-18T22:23:18.937906"
+  },
+  {
+    "stock_key": "a:002315",
+    "name": "焦点科技",
+    "market": "a",
+    "reference_price": 24.8,
+    "set_at": "2026-06-20T22:24:55.783825",
+    "release_at": "2026-09-18T22:24:55.783825"
+  },
+  {
+    "stock_key": "a:301507",
+    "name": "民生健康",
+    "market": "a",
+    "reference_price": 12.23,
+    "set_at": "2026-06-20T22:35:05.353998",
+    "release_at": "2026-09-18T22:35:05.353998"
+  },
+  {
+    "stock_key": "a:688016",
+    "name": "心脉医疗",
+    "market": "a",
+    "reference_price": 89.18,
+    "set_at": "2026-06-20T22:37:54.661159",
+    "release_at": "2026-09-18T22:37:54.661159"
+  },
+  {
+    "stock_key": "a:603193",
+    "name": "润本股份",
+    "market": "a",
+    "reference_price": 20.71,
+    "set_at": "2026-06-20T22:43:34.077394",
+    "release_at": "2026-09-18T22:43:34.077394"
+  },
+  {
+    "stock_key": "a:301101",
+    "name": "明月镜片",
+    "market": "a",
+    "reference_price": 29.59,
+    "set_at": "2026-06-20T22:45:21.631140",
+    "release_at": "2026-09-18T22:45:21.631140"
+  },
+  {
+    "stock_key": "a:300015",
+    "name": "爱尔眼科",
+    "market": "a",
+    "reference_price": 8.27,
+    "set_at": "2026-06-20T22:50:30.874086",
+    "release_at": "2026-09-18T22:50:30.874086"
+  },
+  {
+    "stock_key": "a:300627",
+    "name": "华测导航",
+    "market": "a",
+    "reference_price": 29.28,
+    "set_at": "2026-06-20T22:57:52.928563",
+    "release_at": "2026-09-18T22:57:52.928563"
+  },
+  {
+    "stock_key": "a:688278",
+    "name": "特宝生物",
+    "market": "a",
+    "reference_price": 55.82,
+    "set_at": "2026-06-20T22:59:58.639327",
+    "release_at": "2026-09-18T22:59:58.639327"
+  },
+  {
+    "stock_key": "a:301498",
+    "name": "乖宝宠物",
+    "market": "a",
+    "reference_price": 40.87,
+    "set_at": "2026-06-20T23:00:43.382809",
+    "release_at": "2026-09-18T23:00:43.382809"
+  },
+  {
+    "stock_key": "a:300711",
+    "name": "广哈通信",
+    "market": "a",
+    "reference_price": 17.8,
+    "set_at": "2026-06-20T23:02:15.510873",
+    "release_at": "2026-09-18T23:02:15.510873"
+  },
+  {
+    "stock_key": "a:688100",
+    "name": "威胜信息",
+    "market": "a",
+    "reference_price": 31.4,
+    "set_at": "2026-06-20T23:05:01.608811",
+    "release_at": "2026-09-18T23:05:01.608811"
+  },
+  {
+    "stock_key": "a:301215",
+    "name": "中汽股份",
+    "market": "a",
+    "reference_price": 5.35,
+    "set_at": "2026-06-20T23:10:48.244093",
+    "release_at": "2026-09-18T23:10:48.244093"
+  },
+  {
+    "stock_key": "a:603402",
+    "name": "陕西旅游",
+    "market": "a",
+    "reference_price": 66.99,
+    "set_at": "2026-06-20T23:13:16.772560",
+    "release_at": "2026-09-18T23:13:16.772560"
+  },
+  {
+    "stock_key": "a:688050",
+    "name": "爱博医疗",
+    "market": "a",
+    "reference_price": 39.23,
+    "set_at": "2026-06-20T23:16:09.368333",
+    "release_at": "2026-09-18T23:16:09.368333"
+  },
+  {
+    "stock_key": "a:002223",
+    "name": "鱼跃医疗",
+    "market": "a",
+    "reference_price": 24.72,
+    "set_at": "2026-06-20T23:18:41.581470",
+    "release_at": "2026-09-18T23:18:41.581470"
+  },
+  {
+    "stock_key": "a:688336",
+    "name": "DR三生国",
+    "market": "a",
+    "reference_price": 40.15,
+    "set_at": "2026-06-21T10:34:01.397401",
+    "release_at": "2026-09-19T10:34:01.397401"
+  },
+  {
+    "stock_key": "a:301033",
+    "name": "迈普医学",
+    "market": "a",
+    "reference_price": 48.9,
+    "set_at": "2026-06-21T10:40:51.577664",
+    "release_at": "2026-09-19T10:40:51.577664"
+  },
+  {
+    "stock_key": "a:002294",
+    "name": "信立泰",
+    "market": "a",
+    "reference_price": 30.38,
+    "set_at": "2026-06-21T10:42:56.962638",
+    "release_at": "2026-09-19T10:42:56.962638"
+  },
+  {
+    "stock_key": "a:301609",
+    "name": "山大电力",
+    "market": "a",
+    "reference_price": 37.28,
+    "set_at": "2026-06-21T10:49:01.019575",
+    "release_at": "2026-09-19T10:49:01.019575"
+  },
+  {
+    "stock_key": "a:688475",
+    "name": "萤石网络",
+    "market": "a",
+    "reference_price": 27.3,
+    "set_at": "2026-06-21T10:53:59.148421",
+    "release_at": "2026-09-19T10:53:59.148421"
+  },
+  {
+    "stock_key": "a:300634",
+    "name": "彩讯股份",
+    "market": "a",
+    "reference_price": 22.24,
+    "set_at": "2026-06-21T14:37:52.690550",
+    "release_at": "2026-09-19T14:37:52.690550"
+  },
+  {
+    "stock_key": "a:600085",
+    "name": "同仁堂",
+    "market": "a",
+    "reference_price": 23.5,
+    "set_at": "2026-06-21T14:39:37.773218",
+    "release_at": "2026-09-19T14:39:37.773218"
+  },
+  {
+    "stock_key": "a:002296",
+    "name": "辉煌科技",
+    "market": "a",
+    "reference_price": 9.4,
+    "set_at": "2026-06-21T14:41:53.569466",
+    "release_at": "2026-09-19T14:41:53.569466"
+  },
+  {
+    "stock_key": "a:301267",
+    "name": "华厦眼科",
+    "market": "a",
+    "reference_price": 16.18,
+    "set_at": "2026-06-21T14:44:16.173961",
+    "release_at": "2026-09-19T14:44:16.173961"
+  },
+  {
+    "stock_key": "a:002019",
+    "name": "亿帆医药",
+    "market": "a",
+    "reference_price": 9.71,
+    "set_at": "2026-06-21T14:55:58.713050",
+    "release_at": "2026-09-19T14:55:58.713050"
+  },
+  {
+    "stock_key": "a:002252",
+    "name": "上海莱士",
+    "market": "a",
+    "reference_price": 4.65,
+    "set_at": "2026-06-21T14:58:34.393174",
+    "release_at": "2026-09-19T14:58:34.393174"
+  },
+  {
+    "stock_key": "a:301289",
+    "name": "国缆检测",
+    "market": "a",
+    "reference_price": 50.1,
+    "set_at": "2026-06-21T15:07:51.769230",
+    "release_at": "2026-09-19T15:07:51.769230"
+  },
+  {
+    "stock_key": "a:301367",
+    "name": "瑞迈特",
+    "market": "a",
+    "reference_price": 39.94,
+    "set_at": "2026-06-21T15:13:31.678957",
+    "release_at": "2026-09-19T15:13:31.678957"
+  },
+  {
+    "stock_key": "a:001396",
+    "name": "誉帆科技",
+    "market": "a",
+    "reference_price": 39.9,
+    "set_at": "2026-06-21T17:33:20.746359",
+    "release_at": "2026-09-19T17:33:20.746359"
+  },
+  {
+    "stock_key": "a:688111",
+    "name": "金山办公",
+    "market": "a",
+    "reference_price": 217.36,
+    "set_at": "2026-06-21T17:36:19.501592",
+    "release_at": "2026-09-19T17:36:19.501592"
+  },
+  {
+    "stock_key": "a:688617",
+    "name": "惠泰医疗",
+    "market": "a",
+    "reference_price": 191.64,
+    "set_at": "2026-06-21T17:45:28.940959",
+    "release_at": "2026-09-19T17:45:28.940959"
+  },
+  {
+    "stock_key": "a:600054",
+    "name": "黄山旅游",
+    "market": "a",
+    "reference_price": 10.95,
+    "set_at": "2026-06-21T17:52:35.815639",
+    "release_at": "2026-09-19T17:52:35.815639"
+  },
+  {
+    "stock_key": "a:301299",
+    "name": "卓创资讯",
+    "market": "a",
+    "reference_price": 49.9,
+    "set_at": "2026-06-21T17:54:58.515493",
+    "release_at": "2026-09-19T17:54:58.515493"
+  },
+  {
+    "stock_key": "a:002626",
+    "name": "金达威",
+    "market": "a",
+    "reference_price": 13.78,
+    "set_at": "2026-06-21T18:01:02.057633",
+    "release_at": "2026-09-19T18:01:02.057633"
+  },
+  {
+    "stock_key": "a:300275",
+    "name": "梅安森",
+    "market": "a",
+    "reference_price": 8.66,
+    "set_at": "2026-06-21T18:48:02.171317",
+    "release_at": "2026-09-19T18:48:02.171317"
+  },
+  {
+    "stock_key": "a:688816",
+    "name": "易思维",
+    "market": "a",
+    "reference_price": 63.27,
+    "set_at": "2026-06-21T18:49:27.373794",
+    "release_at": "2026-09-19T18:49:27.373794"
+  },
+  {
+    "stock_key": "a:002603",
+    "name": "以岭药业",
+    "market": "a",
+    "reference_price": 15.02,
+    "set_at": "2026-06-21T18:50:59.488362",
+    "release_at": "2026-09-19T18:50:59.488362"
+  },
+  {
+    "stock_key": "a:300777",
+    "name": "中简科技",
+    "market": "a",
+    "reference_price": 29.4,
+    "set_at": "2026-06-21T18:52:01.873677",
+    "release_at": "2026-09-19T18:52:01.873677"
+  },
+  {
+    "stock_key": "a:688271",
+    "name": "联影医疗",
+    "market": "a",
+    "reference_price": 103.48,
+    "set_at": "2026-06-21T18:59:15.203471",
+    "release_at": "2026-09-19T18:59:15.203471"
+  },
+  {
+    "stock_key": "a:300595",
+    "name": "欧普康视",
+    "market": "a",
+    "reference_price": 11.02,
+    "set_at": "2026-06-21T19:00:13.144911",
+    "release_at": "2026-09-19T19:00:13.144911"
+  },
+  {
+    "stock_key": "a:688522",
+    "name": "纳睿雷达",
+    "market": "a",
+    "reference_price": 20.41,
+    "set_at": "2026-06-21T19:01:44.814478",
+    "release_at": "2026-09-19T19:01:44.814478"
+  },
+  {
+    "stock_key": "a:300633",
+    "name": "开立医疗",
+    "market": "a",
+    "reference_price": 19.05,
+    "set_at": "2026-06-21T19:03:06.647186",
+    "release_at": "2026-09-19T19:03:06.647186"
+  },
+  {
+    "stock_key": "a:600771",
+    "name": "广誉远",
+    "market": "a",
+    "reference_price": 13.49,
+    "set_at": "2026-06-21T19:05:44.056234",
+    "release_at": "2026-09-19T19:05:44.056234"
+  },
+  {
+    "stock_key": "a:002780",
+    "name": "三夫户外",
+    "market": "a",
+    "reference_price": 12.97,
+    "set_at": "2026-06-21T19:11:20.915031",
+    "release_at": "2026-09-19T19:11:20.915031"
+  },
+  {
+    "stock_key": "a:688088",
+    "name": "虹软科技",
+    "market": "a",
+    "reference_price": 38.05,
+    "set_at": "2026-06-21T19:16:03.851825",
+    "release_at": "2026-09-19T19:16:03.851825"
+  },
+  {
+    "stock_key": "a:600276",
+    "name": "恒瑞医药",
+    "market": "a",
+    "reference_price": 48.42,
+    "set_at": "2026-06-21T19:22:01.013042",
+    "release_at": "2026-09-19T19:22:01.013042"
+  },
+  {
+    "stock_key": "a:300718",
+    "name": "长盛轴承",
+    "market": "a",
+    "reference_price": 67.65,
+    "set_at": "2026-06-21T19:22:54.040012",
+    "release_at": "2026-09-19T19:22:54.040012"
+  },
+  {
+    "stock_key": "a:000858",
+    "name": "五 粮 液",
+    "market": "a",
+    "reference_price": 75.85,
+    "set_at": "2026-06-21T19:23:30.166733",
+    "release_at": "2026-09-19T19:23:30.166733"
+  },
+  {
+    "stock_key": "a:600436",
+    "name": "片仔癀",
+    "market": "a",
+    "reference_price": 112.89,
+    "set_at": "2026-06-21T21:19:12.740160",
+    "release_at": "2026-09-19T21:19:12.740160"
+  },
+  {
+    "stock_key": "a:002609",
+    "name": "捷顺科技",
+    "market": "a",
+    "reference_price": 7.41,
+    "set_at": "2026-06-21T21:24:22.359708",
+    "release_at": "2026-09-19T21:24:22.359708"
+  },
+  {
+    "stock_key": "a:688236",
+    "name": "春立医疗",
+    "market": "a",
+    "reference_price": 15.16,
+    "set_at": "2026-06-21T21:28:07.960026",
+    "release_at": "2026-09-19T21:28:07.960026"
+  },
+  {
+    "stock_key": "a:301023",
+    "name": "奕帆传动",
+    "market": "a",
+    "reference_price": 30.99,
+    "set_at": "2026-06-21T23:07:55.482343",
+    "release_at": "2026-09-19T23:07:55.482343"
+  },
+  {
+    "stock_key": "a:300525",
+    "name": "博思软件",
+    "market": "a",
+    "reference_price": 8.62,
+    "set_at": "2026-06-21T23:12:35.245363",
+    "release_at": "2026-09-19T23:12:35.245363"
+  },
+  {
+    "stock_key": "a:300699",
+    "name": "光威复材",
+    "market": "a",
+    "reference_price": 28.54,
+    "set_at": "2026-06-21T23:16:56.021289",
+    "release_at": "2026-09-19T23:16:56.021289"
+  },
+  {
+    "stock_key": "a:301632",
+    "name": "广东建科",
+    "market": "a",
+    "reference_price": 16.1,
+    "set_at": "2026-06-21T23:18:24.641252",
+    "release_at": "2026-09-19T23:18:24.641252"
+  },
+  {
+    "stock_key": "a:300306",
+    "name": "远方信息",
+    "market": "a",
+    "reference_price": 10.1,
+    "set_at": "2026-06-21T23:19:19.738215",
+    "release_at": "2026-09-19T23:19:19.738215"
+  },
+  {
+    "stock_key": "a:300858",
+    "name": "科拓生物",
+    "market": "a",
+    "reference_price": 15.6,
+    "set_at": "2026-06-21T23:24:28.652939",
+    "release_at": "2026-09-19T23:24:28.652939"
+  },
+  {
+    "stock_key": "a:688139",
+    "name": "XD海尔生",
+    "market": "a",
+    "reference_price": 26.67,
+    "set_at": "2026-06-21T23:27:00.656011",
+    "release_at": "2026-09-19T23:27:00.656011"
+  },
+  {
+    "stock_key": "a:688161",
+    "name": "威高骨科",
+    "market": "a",
+    "reference_price": 21.84,
+    "set_at": "2026-06-21T23:49:06.699211",
+    "release_at": "2026-09-19T23:49:06.699211"
+  },
+  {
+    "stock_key": "a:301047",
+    "name": "义翘神州",
+    "market": "a",
+    "reference_price": 60.59,
+    "set_at": "2026-06-21T23:52:00.915518",
+    "release_at": "2026-09-19T23:52:00.915518"
+  },
+  {
+    "stock_key": "a:002978",
+    "name": "安宁股份",
+    "market": "a",
+    "reference_price": 27.11,
+    "set_at": "2026-06-21T23:54:13.829321",
+    "release_at": "2026-09-19T23:54:13.829321"
+  },
+  {
+    "stock_key": "a:003005",
+    "name": "竞业达",
+    "market": "a",
+    "reference_price": 14.24,
+    "set_at": "2026-06-21T23:55:43.260102",
+    "release_at": "2026-09-19T23:55:43.260102"
+  },
+  {
+    "stock_key": "a:300036",
+    "name": "超图软件",
+    "market": "a",
+    "reference_price": 12.12,
+    "set_at": "2026-06-22T09:27:10.193687",
+    "release_at": "2026-09-20T09:27:10.193687"
+  },
+  {
+    "stock_key": "a:688579",
+    "name": "地纬智能",
+    "market": "a",
+    "reference_price": 8.43,
+    "set_at": "2026-06-22T09:31:15.805828",
+    "release_at": "2026-09-20T09:31:15.805828"
+  }
+]

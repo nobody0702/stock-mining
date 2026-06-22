@@ -4,7 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from stock_mining.config import load_pipeline_config
+from stock_mining.config import load_pipeline_config, resolve_project_path
 from stock_mining.llm.dimensions import AnalysisConfig, load_dimensions_config
 from stock_mining.llm.prompt_builder import build_batch_prompt, build_stock_prompt
 from stock_mining.llm.table_parser import missing_dimensions, parse_markdown_table
@@ -31,6 +31,7 @@ class ReviewService:
     @classmethod
     def from_project_root(cls, root: Path) -> "ReviewService":
         config = load_pipeline_config(root / "config" / "screen.yaml")
+        config_path = root / "config" / "screen.yaml"
         dimensions = load_dimensions_config(root / "config" / "analysis_dimensions.yaml")
         state_cfg = config.state
         suppress_days = getattr(state_cfg, "disposition_suppress_days", DEFAULT_SUPPRESS_DAYS)
@@ -42,8 +43,8 @@ class ReviewService:
         return cls(
             results_dir=root / config.output.directory,
             state=UserStateStore(
-                state_cfg.db_path,
-                dispositions_dir=state_cfg.dispositions_dir,
+                resolve_project_path(config_path, state_cfg.db_path),
+                dispositions_dir=resolve_project_path(config_path, state_cfg.dispositions_dir),
             ),
             dimensions_config=dimensions,
             suppress_days=suppress_days,

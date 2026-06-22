@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -28,6 +29,17 @@ class DispositionFileStore:
             if not path.exists():
                 path.write_text("[]\n", encoding="utf-8")
 
+    def is_empty(self) -> bool:
+        return all(len(self._load(kind)) == 0 for kind in _KIND_FILES)
+
+    def import_entries(self, grouped: dict[str, list[dict]]) -> int:
+        total = 0
+        for kind in _KIND_FILES:
+            entries = grouped.get(kind, [])
+            self._save(kind, entries)
+            total += len(entries)
+        return total
+
     def set_stock_disposition(
         self,
         stock_key: str,
@@ -38,18 +50,21 @@ class DispositionFileStore:
         reference_price: float | None = None,
         suppress_days: int = DEFAULT_SUPPRESS_DAYS,
         now: datetime | None = None,
+        set_at: datetime | None = None,
+        release_at: datetime | None = None,
     ) -> None:
         now = now or datetime.now()
-        release_at: datetime | None = None
+        set_at = set_at or now
         ref_price = reference_price
+        computed_release_at = release_at
 
         if disposition == DispositionKind.NOT_INTERESTED:
-            release_at = now + timedelta(days=suppress_days)
+            computed_release_at = computed_release_at or set_at + timedelta(days=suppress_days)
             ref_price = None
         elif disposition == DispositionKind.TOO_EXPENSIVE:
-            release_at = now + timedelta(days=suppress_days)
+            computed_release_at = computed_release_at or set_at + timedelta(days=suppress_days)
         elif disposition == DispositionKind.WATCHLIST:
-            release_at = None
+            computed_release_at = None
             ref_price = None
         else:
             raise ValueError(f"Unknown disposition: {disposition}")
@@ -60,8 +75,8 @@ class DispositionFileStore:
             "name": name,
             "market": market,
             "reference_price": ref_price,
-            "set_at": now.isoformat(),
-            "release_at": release_at.isoformat() if release_at else None,
+            "set_at": set_at.isoformat(),
+            "release_at": computed_release_at.isoformat() if computed_release_at else None,
         }
         entries = self._load(disposition)
         entries.append(payload)
@@ -148,3 +163,48 @@ class DispositionFileStore:
             release_at=datetime.fromisoformat(release) if release else None,
             status="active",
         )
+
+
+def migrate_sqlite_dispositions(
+    db_path: Path,
+    file_store: DispositionFileStore,
+) -> int:
+    """One-time import from legacy stock_dispositions SQLite table."""
+    if not file_store.is_empty():
+        return 0
+    if not db_path.exists():
+        return 0
+
+    with sqlite3.connect(db_path) as conn:
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                """
+                SELECT stock_key, name, market, disposition, reference_price, set_at, release_at
+                FROM stock_dispositions
+                WHERE status='active'
+                ORDER BY set_at ASC
+                """
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return 0
+
+    grouped: dict[str, list[dict]] = {kind: [] for kind in _KIND_FILES}
+    for row in rows:
+        kind = row["disposition"]
+        if kind not in grouped:
+            continue
+        ref = row["reference_price"]
+        release = row["release_at"]
+        grouped[kind].append(
+            {
+                "stock_key": row["stock_key"],
+                "name": row["name"],
+                "market": row["market"],
+                "reference_price": float(ref) if ref is not None else None,
+                "set_at": row["set_at"],
+                "release_at": release,
+            }
+        )
+
+    return file_store.import_entries(grouped)

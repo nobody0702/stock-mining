@@ -12,7 +12,7 @@ from stock_mining.state.disposition import (
     StockDispositionEntry,
     should_suppress_daily_push,
 )
-from stock_mining.state.disposition_store import DispositionFileStore
+from stock_mining.state.disposition_store import DispositionFileStore, migrate_sqlite_dispositions
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,7 @@ class UserStateStore:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         disp_dir = dispositions_dir or self.db_path.parent / "dispositions"
         self._dispositions = DispositionFileStore(disp_dir)
+        migrate_sqlite_dispositions(self.db_path, self._dispositions)
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:

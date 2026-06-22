@@ -8,7 +8,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from stock_mining.config import PipelineConfig, TrackConfig, load_pipeline_config
+from stock_mining.config import PipelineConfig, TrackConfig, load_pipeline_config, resolve_project_path
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.filters.base import Filter
 from stock_mining.filters.registry import build_filters
@@ -79,10 +79,14 @@ class DailyScreener:
         state_store: UserStateStore | None = None,
     ) -> "DailyScreener":
         config = load_pipeline_config(path)
+        config_path = Path(path)
         if state_store is None:
             state_store = UserStateStore(
-                config.state.db_path,
-                dispositions_dir=config.state.dispositions_dir,
+                resolve_project_path(config_path, config.state.db_path),
+                dispositions_dir=resolve_project_path(
+                    config_path,
+                    config.state.dispositions_dir,
+                ),
             )
         providers = build_market_providers(
             config.data_source,

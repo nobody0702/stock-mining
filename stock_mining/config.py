@@ -156,6 +156,15 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
     )
 
 
+def project_root_from_config(config_path: str | Path) -> Path:
+    """Project root when config lives under `<root>/config/`."""
+    return Path(config_path).resolve().parent.parent
+
+
+def resolve_project_path(config_path: str | Path, relative: str | Path) -> Path:
+    return project_root_from_config(config_path) / relative
+
+
 def normalize_code_for_market(code: str, market: Market) -> str:
     return normalize_stock_code(code, market)
 

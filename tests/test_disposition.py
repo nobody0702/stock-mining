@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import datetime, timedelta
 
 import pytest
@@ -173,6 +174,38 @@ def test_disposition_persisted_to_json_files(store, tmp_path):
     assert json.loads(watchlist_path.read_text(encoding="utf-8")) == []
     not_interested_path = tmp_path / "dispositions" / "not_interested.json"
     assert len(json.loads(not_interested_path.read_text(encoding="utf-8"))) == 1
+
+
+def test_migrate_sqlite_dispositions_to_json(tmp_path):
+    db_path = tmp_path / "state.sqlite3"
+    disp_dir = tmp_path / "dispositions"
+
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE stock_dispositions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stock_key TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                market TEXT NOT NULL,
+                disposition TEXT NOT NULL,
+                reference_price REAL,
+                set_at TEXT NOT NULL,
+                release_at TEXT,
+                status TEXT NOT NULL DEFAULT 'active'
+            );
+            INSERT INTO stock_dispositions(
+                stock_key, name, market, disposition, reference_price, set_at, release_at, status
+            ) VALUES (
+                'a:688001', '样本A', 'a', 'watchlist', NULL, '2025-06-01T10:00:00', NULL, 'active'
+            );
+            """
+        )
+
+    store = UserStateStore(db_path, dispositions_dir=disp_dir)
+    assert len(store.list_stock_dispositions(disposition=DispositionKind.WATCHLIST)) == 1
+    payload = json.loads((disp_dir / "watchlist.json").read_text(encoding="utf-8"))
+    assert payload[0]["stock_key"] == "a:688001"
 
 
 def test_dedup_filters_by_disposition(store):

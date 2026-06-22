@@ -51,7 +51,7 @@ def main() -> int:
     sys.path.insert(0, str(root))
     os.chdir(root)
 
-    from stock_mining.config import load_pipeline_config
+    from stock_mining.config import load_pipeline_config, resolve_project_path
     from stock_mining.markets.base import Market
     from stock_mining.pipeline.screener import DailyScreener
     from stock_mining.state.store import UserStateStore
@@ -62,8 +62,8 @@ def main() -> int:
 
     config = load_pipeline_config(config_path)
     state_store = None if args.skip_dedup else UserStateStore(
-        config.state.db_path,
-        dispositions_dir=config.state.dispositions_dir,
+        resolve_project_path(config_path, config.state.db_path),
+        dispositions_dir=resolve_project_path(config_path, config.state.dispositions_dir),
     )
     screener = DailyScreener.from_yaml(config_path, state_store=state_store)
 
