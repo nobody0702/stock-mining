@@ -80,7 +80,10 @@ class DailyScreener:
     ) -> "DailyScreener":
         config = load_pipeline_config(path)
         if state_store is None:
-            state_store = UserStateStore(config.state.db_path)
+            state_store = UserStateStore(
+                config.state.db_path,
+                dispositions_dir=config.state.dispositions_dir,
+            )
         providers = build_market_providers(
             config.data_source,
             config.markets,

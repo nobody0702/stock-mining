@@ -41,7 +41,10 @@ class ReviewService:
         )
         return cls(
             results_dir=root / config.output.directory,
-            state=UserStateStore(state_cfg.db_path),
+            state=UserStateStore(
+                state_cfg.db_path,
+                dispositions_dir=state_cfg.dispositions_dir,
+            ),
             dimensions_config=dimensions,
             suppress_days=suppress_days,
             too_expensive_drop_ratio=drop_ratio,

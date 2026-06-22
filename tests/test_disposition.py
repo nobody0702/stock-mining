@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -146,6 +147,32 @@ def test_release_expired_dispositions(store):
     released = store.release_expired_dispositions(now=now + timedelta(days=2))
     assert released == 1
     assert store.get_stock_disposition(hit.stock_key) is None
+
+
+def test_disposition_persisted_to_json_files(store, tmp_path):
+    hit = _hit()
+    store.set_stock_disposition(
+        hit.stock_key,
+        hit.name,
+        hit.market.value,
+        DispositionKind.WATCHLIST,
+    )
+    watchlist_path = tmp_path / "dispositions" / "watchlist.json"
+    assert watchlist_path.exists()
+    payload = json.loads(watchlist_path.read_text(encoding="utf-8"))
+    assert len(payload) == 1
+    assert payload[0]["stock_key"] == hit.stock_key
+
+    store.set_stock_disposition(
+        hit.stock_key,
+        hit.name,
+        hit.market.value,
+        DispositionKind.NOT_INTERESTED,
+        suppress_days=90,
+    )
+    assert json.loads(watchlist_path.read_text(encoding="utf-8")) == []
+    not_interested_path = tmp_path / "dispositions" / "not_interested.json"
+    assert len(json.loads(not_interested_path.read_text(encoding="utf-8"))) == 1
 
 
 def test_dedup_filters_by_disposition(store):

@@ -54,6 +54,7 @@ class StateConfig:
     recommendation_cooldown_days: int = 30
     disposition_suppress_days: int = 90
     too_expensive_drop_ratio: float = 0.10
+    dispositions_dir: str = "data/state/dispositions"
 
 
 @dataclass
@@ -150,6 +151,7 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
             recommendation_cooldown_days=int(state_raw.get("recommendation_cooldown_days", 30)),
             disposition_suppress_days=int(state_raw.get("disposition_suppress_days", 90)),
             too_expensive_drop_ratio=float(state_raw.get("too_expensive_drop_ratio", 0.10)),
+            dispositions_dir=str(state_raw.get("dispositions_dir", "data/state/dispositions")),
         ),
     )
 

@@ -51,6 +51,7 @@ def main() -> int:
     sys.path.insert(0, str(root))
     os.chdir(root)
 
+    from stock_mining.config import load_pipeline_config
     from stock_mining.markets.base import Market
     from stock_mining.pipeline.screener import DailyScreener
     from stock_mining.state.store import UserStateStore
@@ -59,8 +60,10 @@ def main() -> int:
     if not config_path.is_absolute():
         config_path = root / config_path
 
+    config = load_pipeline_config(config_path)
     state_store = None if args.skip_dedup else UserStateStore(
-        load_config_state_path(config_path)
+        config.state.db_path,
+        dispositions_dir=config.state.dispositions_dir,
     )
     screener = DailyScreener.from_yaml(config_path, state_store=state_store)
 
@@ -93,12 +96,6 @@ def main() -> int:
     print(f"已写入: {csv_path}")
     print(f"已写入: {legacy_path}")
     return 0
-
-
-def load_config_state_path(config_path: Path) -> str:
-    from stock_mining.config import load_pipeline_config
-
-    return load_pipeline_config(config_path).state.db_path
 
 
 if __name__ == "__main__":
