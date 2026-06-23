@@ -1550,5 +1550,29 @@
     "reference_price": null,
     "set_at": "2026-06-22T14:55:39.411378",
     "release_at": "2026-09-20T14:55:39.411378"
+  },
+  {
+    "stock_key": "a:603860",
+    "name": "中公高科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-23T11:18:26.622734",
+    "release_at": "2026-09-21T11:18:26.622734"
+  },
+  {
+    "stock_key": "a:300109",
+    "name": "新开源",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-23T11:19:29.472584",
+    "release_at": "2026-09-21T11:19:29.472584"
+  },
+  {
+    "stock_key": "a:688576",
+    "name": "DR西山科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-23T11:20:15.445987",
+    "release_at": "2026-09-21T11:20:15.445987"
   }
 ]
