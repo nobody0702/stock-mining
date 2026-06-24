@@ -1574,5 +1574,269 @@
     "reference_price": null,
     "set_at": "2026-06-23T11:20:15.445987",
     "release_at": "2026-09-21T11:20:15.445987"
+  },
+  {
+    "stock_key": "a:688633",
+    "name": "星球石墨",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:02:01.341056",
+    "release_at": "2026-09-22T10:02:01.341056"
+  },
+  {
+    "stock_key": "a:688334",
+    "name": "西高院",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:02:12.950748",
+    "release_at": "2026-09-22T10:02:12.950748"
+  },
+  {
+    "stock_key": "a:002884",
+    "name": "凌霄泵业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:02:20.565346",
+    "release_at": "2026-09-22T10:02:20.565346"
+  },
+  {
+    "stock_key": "a:603393",
+    "name": "新天然气",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:02:25.066338",
+    "release_at": "2026-09-22T10:02:25.066338"
+  },
+  {
+    "stock_key": "a:300797",
+    "name": "钢研纳克",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:05:27.883494",
+    "release_at": "2026-09-22T10:05:27.883494"
+  },
+  {
+    "stock_key": "a:603088",
+    "name": "宁波精达",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:05:37.247374",
+    "release_at": "2026-09-22T10:05:37.247374"
+  },
+  {
+    "stock_key": "a:600862",
+    "name": "中航高科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:05:46.933952",
+    "release_at": "2026-09-22T10:05:46.933952"
+  },
+  {
+    "stock_key": "a:688336",
+    "name": "三生国健",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:05:55.072263",
+    "release_at": "2026-09-22T10:05:55.072263"
+  },
+  {
+    "stock_key": "a:688621",
+    "name": "阳光诺和",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:06:00.500052",
+    "release_at": "2026-09-22T10:06:00.500052"
+  },
+  {
+    "stock_key": "a:600085",
+    "name": "同仁堂",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:06:14.012249",
+    "release_at": "2026-09-22T10:06:14.012249"
+  },
+  {
+    "stock_key": "a:688651",
+    "name": "盛邦安全",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:06:19.178540",
+    "release_at": "2026-09-22T10:06:19.178540"
+  },
+  {
+    "stock_key": "a:688310",
+    "name": "迈得医疗",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:07:57.575762",
+    "release_at": "2026-09-22T10:07:57.575762"
+  },
+  {
+    "stock_key": "a:600054",
+    "name": "黄山旅游",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:08:02.219300",
+    "release_at": "2026-09-22T10:08:02.219300"
+  },
+  {
+    "stock_key": "a:688628",
+    "name": "优利德",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:08:12.382736",
+    "release_at": "2026-09-22T10:08:12.382736"
+  },
+  {
+    "stock_key": "a:688314",
+    "name": "康拓医疗",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:08:20.021878",
+    "release_at": "2026-09-22T10:08:20.021878"
+  },
+  {
+    "stock_key": "a:603662",
+    "name": "柯力传感",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:08:24.886732",
+    "release_at": "2026-09-22T10:08:24.886732"
+  },
+  {
+    "stock_key": "a:601020",
+    "name": "华钰矿业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:10:29.778122",
+    "release_at": "2026-09-22T10:10:29.778122"
+  },
+  {
+    "stock_key": "a:688283",
+    "name": "坤恒顺维",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:11:54.348601",
+    "release_at": "2026-09-22T10:11:54.348601"
+  },
+  {
+    "stock_key": "a:603087",
+    "name": "甘李药业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:11:59.080041",
+    "release_at": "2026-09-22T10:11:59.080041"
+  },
+  {
+    "stock_key": "a:688273",
+    "name": "麦澜德",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:12:22.230194",
+    "release_at": "2026-09-22T10:12:22.230194"
+  },
+  {
+    "stock_key": "a:601121",
+    "name": "宝地矿业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:12:29.048090",
+    "release_at": "2026-09-22T10:12:29.048090"
+  },
+  {
+    "stock_key": "a:601100",
+    "name": "恒立液压",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:12:40.175752",
+    "release_at": "2026-09-22T10:12:40.175752"
+  },
+  {
+    "stock_key": "a:603099",
+    "name": "长白山",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:12:48.419807",
+    "release_at": "2026-09-22T10:12:48.419807"
+  },
+  {
+    "stock_key": "a:688265",
+    "name": "南模生物",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:12:56.016416",
+    "release_at": "2026-09-22T10:12:56.016416"
+  },
+  {
+    "stock_key": "a:688592",
+    "name": "司南导航",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:00.073102",
+    "release_at": "2026-09-22T10:13:00.073102"
+  },
+  {
+    "stock_key": "a:688329",
+    "name": "艾隆科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:07.506419",
+    "release_at": "2026-09-22T10:13:07.506419"
+  },
+  {
+    "stock_key": "a:600163",
+    "name": "中闽能源",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:12.486584",
+    "release_at": "2026-09-22T10:13:12.486584"
+  },
+  {
+    "stock_key": "a:688293",
+    "name": "奥浦迈",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:20.765808",
+    "release_at": "2026-09-22T10:13:20.765808"
+  },
+  {
+    "stock_key": "a:688665",
+    "name": "四方光电",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:25.838924",
+    "release_at": "2026-09-22T10:13:25.838924"
+  },
+  {
+    "stock_key": "a:688618",
+    "name": "三旺通信",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:30.771130",
+    "release_at": "2026-09-22T10:13:30.771130"
+  },
+  {
+    "stock_key": "a:688626",
+    "name": "翔宇医疗",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:40.883022",
+    "release_at": "2026-09-22T10:13:40.883022"
+  },
+  {
+    "stock_key": "a:300474",
+    "name": "景嘉微",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:13:55.684594",
+    "release_at": "2026-09-22T10:13:55.684594"
+  },
+  {
+    "stock_key": "a:688161",
+    "name": "威高骨科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-24T10:14:02.019516",
+    "release_at": "2026-09-22T10:14:02.019516"
   }
 ]

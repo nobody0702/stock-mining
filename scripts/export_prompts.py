@@ -18,8 +18,13 @@ def main() -> int:
     parser.add_argument(
         "--limit",
         type=int,
-        default=10,
-        help="Max stocks in batch prompt",
+        default=None,
+        help="Max stocks in batch prompt (default: all candidates)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Export all candidates (same as omitting --limit)",
     )
     args = parser.parse_args()
 
@@ -30,7 +35,9 @@ def main() -> int:
     from stock_mining.web.review_service import ReviewService
 
     service = ReviewService.from_project_root(root)
-    candidates = service.load_candidates()[: args.limit]
+    candidates = service.load_candidates()
+    if args.limit is not None:
+        candidates = candidates[: args.limit]
     if not candidates:
         print("暂无候选，请先运行 daily_screen.py")
         return 1
@@ -38,7 +45,8 @@ def main() -> int:
     prompt = service.build_batch_prompt(candidates)
     out_dir = root / "data" / "prompts"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{date.today().isoformat()}_batch.md"
+    suffix = f"_all{len(candidates)}" if args.limit is None or args.all else ""
+    out_path = out_dir / f"{date.today().isoformat()}_batch{suffix}.md"
     out_path.write_text(prompt, encoding="utf-8")
     print(f"已导出: {out_path}")
     return 0
