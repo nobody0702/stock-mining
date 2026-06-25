@@ -1838,5 +1838,37 @@
     "reference_price": null,
     "set_at": "2026-06-24T10:14:02.019516",
     "release_at": "2026-09-22T10:14:02.019516"
+  },
+  {
+    "stock_key": "a:301195",
+    "name": "北路智控",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-25T10:25:27.269019",
+    "release_at": "2026-09-23T10:25:27.269019"
+  },
+  {
+    "stock_key": "a:300578",
+    "name": "会畅科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-25T10:28:37.869912",
+    "release_at": "2026-09-23T10:28:37.869912"
+  },
+  {
+    "stock_key": "a:300341",
+    "name": "麦克奥迪",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-25T10:43:28.110032",
+    "release_at": "2026-09-23T10:43:28.110032"
+  },
+  {
+    "stock_key": "a:300624",
+    "name": "万兴科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-25T10:43:56.860686",
+    "release_at": "2026-09-23T10:43:56.860686"
   }
 ]

@@ -134,5 +134,13 @@
     "reference_price": null,
     "set_at": "2026-06-24T10:01:06.056171",
     "release_at": null
+  },
+  {
+    "stock_key": "a:300349",
+    "name": "金卡智能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-25T10:21:44.470260",
+    "release_at": null
   }
 ]
