@@ -96,7 +96,14 @@ class AkshareHkConnectProvider(MarketDataProvider):
             for stock in stocks
         }
 
-    def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
+    def fetch_stock_snapshot(
+        self,
+        code: str,
+        name: str,
+        *,
+        include_dividend: bool = True,
+        fast: bool = False,
+    ) -> MarketSnapshot:
         code = normalize_stock_code(code, Market.HK)
         cache_key = f"snapshot_{code}"
         if self.cache is not None:
@@ -181,7 +188,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
         return {}
 
-    def fetch_financials(self, code: str) -> StockFinancials:
+    def fetch_financials(self, code: str, *, fast: bool = False) -> StockFinancials:
         code = normalize_stock_code(code, Market.HK)
         if self.cache is not None:
             cached = self.cache.get("financial", code)

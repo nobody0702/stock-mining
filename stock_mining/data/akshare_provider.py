@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
-from stock_mining.data.http_retry import call_with_retry
+from stock_mining.data.http_retry import call_with_retry, call_with_timeout
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import (
@@ -25,6 +25,8 @@ from stock_mining.utils import (
 FHPS_REPORT_DATES = ("20251231", "20250630", "20241231", "20240630")
 TRADING_DAYS_52W = 260
 HIST_LOOKBACK_DAYS = 400
+FAST_REQUEST_TIMEOUT_SEC = 15.0
+FAST_REQUEST_RETRIES = 1
 
 
 class AkshareDataProvider(MarketDataProvider):
@@ -135,6 +137,7 @@ class AkshareDataProvider(MarketDataProvider):
                 price=_safe_float(row.get("最新价")),
                 pe=_safe_float(row.get("市盈率-动态")),
                 pb=_safe_float(row.get("市净率")),
+                market_cap_yuan=_parse_market_cap_yuan(row.get("总市值")),
                 dividend_yield_pct=dividend_map.get(code),
             )
 
@@ -169,6 +172,11 @@ class AkshareDataProvider(MarketDataProvider):
                     if snapshot.dividend_yield_pct is not None
                     else _safe_float(payload.get("dividend_yield_pct"))
                 ),
+                market_cap_yuan=(
+                    snapshot.market_cap_yuan
+                    if snapshot.market_cap_yuan is not None
+                    else _parse_market_cap_yuan(payload.get("market_cap_yuan"))
+                ),
             )
 
     def enrich_snapshot_industry(self, snapshot: MarketSnapshot) -> MarketSnapshot:
@@ -188,6 +196,7 @@ class AkshareDataProvider(MarketDataProvider):
             pb=snapshot.pb,
             ps=snapshot.ps,
             dividend_yield_pct=snapshot.dividend_yield_pct,
+            market_cap_yuan=snapshot.market_cap_yuan,
         )
 
     def _fetch_bulk_spot(self) -> pd.DataFrame:
@@ -292,6 +301,7 @@ class AkshareDataProvider(MarketDataProvider):
                     pb=snapshot.pb,
                     ps=snapshot.ps,
                     dividend_yield_pct=snapshot.dividend_yield_pct,
+                    market_cap_yuan=snapshot.market_cap_yuan,
                 )
                 continue
             if snapshot.low_52w is None or snapshot.high_52w is None:
@@ -330,6 +340,7 @@ class AkshareDataProvider(MarketDataProvider):
                     pb=snapshot.pb,
                     ps=snapshot.ps,
                     dividend_yield_pct=snapshot.dividend_yield_pct,
+                    market_cap_yuan=snapshot.market_cap_yuan,
                 )
 
     def _fetch_52w_from_hist(self, code: str) -> dict[str, float | None]:
@@ -377,7 +388,14 @@ class AkshareDataProvider(MarketDataProvider):
             self.cache.set("market", cache_key, result)
         return result
 
-    def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
+    def fetch_stock_snapshot(
+        self,
+        code: str,
+        name: str,
+        *,
+        include_dividend: bool = True,
+        fast: bool = False,
+    ) -> MarketSnapshot:
         code = normalize_code(code)
         if self._bulk_snapshots is not None and code in self._bulk_snapshots:
             snapshot = self._bulk_snapshots[code]
@@ -391,13 +409,23 @@ class AkshareDataProvider(MarketDataProvider):
             if cached is not None:
                 return MarketSnapshot(**cached)
 
-        dividend_map = self.fetch_dividend_map()
-        industry = self._fetch_industry(code)
-        valuation = self._fetch_valuation(code)
+        if fast:
+            valuation = self._fetch_valuation_fast(code)
+            resolved_name = name
+            industry = None
+            dividend_yield_pct = None
+        else:
+            dividend_yield_pct = None
+            if include_dividend:
+                dividend_map = self.fetch_dividend_map()
+                dividend_yield_pct = dividend_map.get(code)
+            industry = self._fetch_industry(code)
+            valuation = self._fetch_valuation(code)
+            resolved_name = name
 
         snapshot = MarketSnapshot(
             code=code,
-            name=name,
+            name=resolved_name,
             market=Market.A,
             industry=industry,
             price=valuation.get("price"),
@@ -407,11 +435,111 @@ class AkshareDataProvider(MarketDataProvider):
             pe=valuation.get("pe"),
             pb=valuation.get("pb"),
             ps=valuation.get("ps"),
-            dividend_yield_pct=dividend_map.get(code),
+            market_cap_yuan=valuation.get("market_cap_yuan"),
+            dividend_yield_pct=dividend_yield_pct,
         )
         if self.cache is not None:
             self.cache.set("market", cache_key, snapshot.__dict__)
         return snapshot
+
+    def _fetch_cninfo_profile(
+        self,
+        code: str,
+        *,
+        fast: bool = False,
+    ) -> dict[str, str | None]:
+        cache_key = f"profile_{code}"
+        if self.cache is not None:
+            cached = self.cache.get("market", cache_key)
+            if cached is not None:
+                return {
+                    "name": cached.get("name") or None,
+                    "industry": cached.get("industry") or None,
+                }
+
+        self._throttle()
+
+        def _fetch() -> pd.DataFrame:
+            return ak.stock_profile_cninfo(symbol=code)
+
+        retries = FAST_REQUEST_RETRIES if fast else self.network_retries
+        try:
+            if fast:
+                df = call_with_timeout(
+                    lambda: call_with_retry(_fetch, retries=retries),
+                    timeout_sec=FAST_REQUEST_TIMEOUT_SEC,
+                    retries=retries,
+                )
+            else:
+                df = call_with_retry(_fetch, retries=retries)
+        except Exception:
+            return {"name": None, "industry": None}
+
+        name: str | None = None
+        industry: str | None = None
+        if df is not None and not df.empty:
+            row = df.iloc[0]
+            if "证券简称" in df.columns:
+                name = str(row.get("证券简称")).strip() or None
+            if "所属行业" in df.columns:
+                industry = str(row.get("所属行业")).strip() or None
+
+        payload = {"name": name or "", "industry": industry or ""}
+        if self.cache is not None:
+            self.cache.set("market", cache_key, payload)
+        return {"name": name, "industry": industry}
+
+    def _fetch_valuation_fast(self, code: str) -> dict[str, float | None]:
+        cache_key = f"valuation_fast_{code}"
+        if self.cache is not None:
+            cached = self.cache.get("market", cache_key)
+            if cached is not None:
+                return {k: _safe_float(v) for k, v in cached.items()}
+
+        self._throttle()
+
+        def _fetch() -> pd.DataFrame:
+            return ak.stock_value_em(symbol=code)
+
+        empty = {
+            "price": None,
+            "low_52w": None,
+            "high_52w": None,
+            "drawdown_from_high_pct": None,
+            "pe": None,
+            "pb": None,
+            "ps": None,
+            "market_cap_yuan": None,
+        }
+        try:
+            df = call_with_timeout(
+                _fetch,
+                timeout_sec=FAST_REQUEST_TIMEOUT_SEC,
+                retries=FAST_REQUEST_RETRIES,
+            )
+        except Exception:
+            return empty
+
+        if df is None or df.empty:
+            return empty
+
+        latest = df.iloc[-1]
+        price = _safe_float(latest.get("当日收盘价"))
+        result = {
+            "price": price,
+            "low_52w": None,
+            "high_52w": None,
+            "drawdown_from_high_pct": None,
+            "pe": _safe_float(latest.get("PE(TTM)")),
+            "pb": _safe_float(latest.get("市净率")),
+            "ps": _safe_float(latest.get("市销率")),
+            "market_cap_yuan": _parse_market_cap_yuan(
+                coalesce_row(latest, "总市值", "市值")
+            ),
+        }
+        if self.cache is not None:
+            self.cache.set("market", cache_key, result)
+        return result
 
     def _fetch_industry(self, code: str) -> str | None:
         cache_key = f"industry_{code}"
@@ -450,13 +578,16 @@ class AkshareDataProvider(MarketDataProvider):
         except Exception:
             df = None
 
-        pe = pb = ps = price = None
+        pe = pb = ps = price = market_cap_yuan = None
         if df is not None and not df.empty:
             latest = df.iloc[-1]
             price = _safe_float(latest.get("当日收盘价"))
             pe = _safe_float(latest.get("PE(TTM)"))
             pb = _safe_float(latest.get("市净率"))
             ps = _safe_float(latest.get("市销率"))
+            market_cap_yuan = _parse_market_cap_yuan(
+                coalesce_row(latest, "总市值", "市值")
+            )
 
         low_52w = stats.get("low_52w")
         high_52w = stats.get("high_52w")
@@ -468,6 +599,7 @@ class AkshareDataProvider(MarketDataProvider):
             "pe": pe,
             "pb": pb,
             "ps": ps,
+            "market_cap_yuan": market_cap_yuan,
         }
 
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
@@ -526,7 +658,7 @@ class AkshareDataProvider(MarketDataProvider):
             self.cache.set("market", cache_key, returns)
         return returns
 
-    def fetch_financials(self, code: str) -> StockFinancials:
+    def fetch_financials(self, code: str, *, fast: bool = False) -> StockFinancials:
         code = normalize_code(code)
         if self.cache is not None:
             cached = self.cache.get("financial", code)
@@ -539,7 +671,14 @@ class AkshareDataProvider(MarketDataProvider):
             return ak.stock_financial_abstract_ths(symbol=code)
 
         try:
-            df = call_with_retry(_fetch, retries=self.network_retries)
+            if fast:
+                df = call_with_timeout(
+                    _fetch,
+                    timeout_sec=FAST_REQUEST_TIMEOUT_SEC,
+                    retries=FAST_REQUEST_RETRIES,
+                )
+            else:
+                df = call_with_retry(_fetch, retries=self.network_retries)
         except Exception:
             return StockFinancials(code=code, market=Market.A, annual=[])
 
@@ -627,6 +766,14 @@ def _normalize_dividend_yield(value: object) -> float | None:
 
 def _safe_float(value: object) -> float | None:
     parsed = parse_number(value)
+    return parsed
+
+
+def _parse_market_cap_yuan(value: object) -> float | None:
+    """Parse total market cap to yuan (East Money bulk spot uses yuan)."""
+    parsed = parse_money_to_yuan(value)
+    if parsed is None or parsed <= 0:
+        return None
     return parsed
 
 

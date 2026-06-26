@@ -27,16 +27,23 @@ class MarketDataProvider(ABC):
         ...
 
     @abstractmethod
-    def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
+    def fetch_stock_snapshot(
+        self,
+        code: str,
+        name: str,
+        *,
+        include_dividend: bool = True,
+        fast: bool = False,
+    ) -> MarketSnapshot:
+        ...
+
+    @abstractmethod
+    def fetch_financials(self, code: str, *, fast: bool = False) -> StockFinancials:
         ...
 
     @abstractmethod
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
         """Map industry name -> total return percent over lookback."""
-
-    @abstractmethod
-    def fetch_financials(self, code: str) -> StockFinancials:
-        ...
 
     def enrich_snapshot_industry(self, snapshot: MarketSnapshot) -> MarketSnapshot:
         return snapshot

@@ -14,6 +14,10 @@ class AnalysisDimension:
     hint: str
     ttl_days: int
     rubric: dict[int, str] = field(default_factory=dict)
+    essence: str = ""
+    scoring_checks: tuple[str, ...] = ()
+    anti_patterns: tuple[str, ...] = ()
+    anchors: dict[int, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -36,6 +40,10 @@ def load_dimensions_config(path: str | Path) -> AnalysisConfig:
             hint=str(item.get("hint", "")),
             ttl_days=int(item.get("ttl_days", 90)),
             rubric=_parse_rubric(item.get("rubric")),
+            essence=str(item.get("essence", "") or "").strip(),
+            scoring_checks=_parse_str_list(item.get("scoring_checks")),
+            anti_patterns=_parse_str_list(item.get("anti_patterns")),
+            anchors=_parse_rubric(item.get("anchors")),
         )
         for item in raw.get("dimensions", [])
     )
@@ -53,3 +61,11 @@ def _parse_rubric(raw: Any) -> dict[int, str]:
     if isinstance(raw, dict):
         return {int(key): str(value) for key, value in raw.items()}
     return {}
+
+
+def _parse_str_list(raw: Any) -> tuple[str, ...]:
+    if not raw:
+        return ()
+    if isinstance(raw, list):
+        return tuple(str(item).strip() for item in raw if str(item).strip())
+    return (str(raw).strip(),) if str(raw).strip() else ()

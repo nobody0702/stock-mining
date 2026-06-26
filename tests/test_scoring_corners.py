@@ -151,3 +151,36 @@ def test_extract_metrics_marks_profitable_flag():
     assert metrics["profitable"] is True
     assert "score_cheap" in metrics
     assert metrics["price_to_low_ratio"] == pytest.approx(1.0)
+
+
+def test_extract_metrics_includes_market_cap_from_snapshot():
+    ctx = ScreeningContext(
+        stock=StockInfo("600000", "样本", Market.A),
+        market=MarketSnapshot(
+            "600000",
+            "样本",
+            market=Market.A,
+            pe=10.0,
+            pb=1.5,
+            ps=2.0,
+            dividend_yield_pct=3.0,
+            price=10.0,
+            low_52w=10.0,
+            high_52w=20.0,
+            market_cap_yuan=9.46e9,
+        ),
+        financials=StockFinancials(
+            "600000",
+            annual=[AnnualMetrics(date(2024, 12, 31), net_profit_yuan=2e8, revenue_yuan=5e8)],
+        ),
+    )
+    score, parts = compute_score(ctx, ScoringConfig())
+    metrics = extract_metrics(ctx, score, parts)
+    assert metrics["market_cap_yuan"] == pytest.approx(9.46e9)
+
+
+def test_extract_metrics_infers_market_cap_from_ps_times_revenue():
+    ctx = _ctx(profit=2e8, ps=10.0)
+    score, parts = compute_score(ctx, ScoringConfig())
+    metrics = extract_metrics(ctx, score, parts)
+    assert metrics["market_cap_yuan"] == pytest.approx(10.0 * 5e8)

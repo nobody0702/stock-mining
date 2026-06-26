@@ -28,6 +28,7 @@ class MarketSnapshot:
     pb: float | None = None
     ps: float | None = None
     dividend_yield_pct: float | None = None
+    market_cap_yuan: float | None = None
 
     def __post_init__(self) -> None:
         if self.drawdown_from_high_pct is None and self.price is not None and self.high_52w is not None:

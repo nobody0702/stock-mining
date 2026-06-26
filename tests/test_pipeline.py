@@ -94,13 +94,13 @@ class FakeProvider(MarketDataProvider):
     def fetch_dividend_map(self) -> dict[str, float]:
         return {"688001": 3.0}
 
-    def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
+    def fetch_stock_snapshot(self, code: str, name: str, *, include_dividend: bool = True, fast: bool = False) -> MarketSnapshot:
         return self.snapshot
 
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
         return {"专用设备": 5.0}
 
-    def fetch_financials(self, code: str) -> StockFinancials:
+    def fetch_financials(self, code: str, *, fast: bool = False) -> StockFinancials:
         return self.financials
 
 

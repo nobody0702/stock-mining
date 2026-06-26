@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from stock_mining.config import ScoringConfig
 from stock_mining.models import MarketSnapshot, ScreeningContext, StockFinancials
+from stock_mining.scoring.valuation import compute_valuation_metrics, load_valuation_scenarios
 from stock_mining.utils import adaptive_annual_window
 
 # 子分归一化参考上限（仅用于打分，不影响 filter）
@@ -37,6 +38,21 @@ def extract_metrics(ctx: ScreeningContext, score: float, components: dict[str, f
         "score": round(score, 2),
         **{f"score_{key}": round(value, 3) for key, value in components.items()},
     }
+    latest_revenue: float | None = None
+    latest_net_profit: float | None = None
+    latest_operating_cashflow: float | None = None
+    if financials is not None:
+        window = adaptive_annual_window(financials.annual, 3)
+        metrics["roe_values"] = [item.roe_pct for item in window]
+        if window:
+            latest = window[-1]
+            latest_net_profit = latest.net_profit_yuan
+            latest_revenue = latest.revenue_yuan
+            latest_operating_cashflow = latest.operating_cashflow_yuan
+            metrics["latest_net_profit"] = latest_net_profit
+            metrics["latest_revenue"] = latest_revenue
+            metrics["latest_operating_cashflow"] = latest_operating_cashflow
+            metrics["profitable"] = _is_profitable(latest_net_profit)
     if market is not None:
         metrics.update(
             {
@@ -53,14 +69,49 @@ def extract_metrics(ctx: ScreeningContext, score: float, components: dict[str, f
         )
         if market.price and market.low_52w and market.low_52w > 0:
             metrics["price_to_low_ratio"] = round(market.price / market.low_52w, 3)
-    if financials is not None:
-        window = adaptive_annual_window(financials.annual, 3)
-        metrics["roe_values"] = [item.roe_pct for item in window]
-        if window:
-            metrics["latest_net_profit"] = window[-1].net_profit_yuan
-            metrics["latest_revenue"] = window[-1].revenue_yuan
-            metrics["profitable"] = _is_profitable(window[-1].net_profit_yuan)
+        market_cap = _resolve_market_cap_yuan(
+            market,
+            latest_revenue_yuan=latest_revenue,
+            latest_net_profit_yuan=latest_net_profit,
+        )
+        if market_cap is not None:
+            metrics["market_cap_yuan"] = market_cap
+        metrics.update(
+            compute_valuation_metrics(
+                price=market.price if market is not None else None,
+                market_cap_yuan=market_cap,
+                latest_net_profit_yuan=latest_net_profit,
+                latest_operating_cashflow_yuan=latest_operating_cashflow,
+                pe=market.pe if market is not None else None,
+                scenarios=load_valuation_scenarios(),
+            )
+        )
     return metrics
+
+
+def _resolve_market_cap_yuan(
+    market: MarketSnapshot,
+    *,
+    latest_revenue_yuan: float | None,
+    latest_net_profit_yuan: float | None,
+) -> float | None:
+    if market.market_cap_yuan is not None and market.market_cap_yuan > 0:
+        return market.market_cap_yuan
+    if (
+        market.ps is not None
+        and market.ps > 0
+        and latest_revenue_yuan is not None
+        and latest_revenue_yuan > 0
+    ):
+        return market.ps * latest_revenue_yuan
+    if (
+        market.pe is not None
+        and market.pe > 0
+        and latest_net_profit_yuan is not None
+        and latest_net_profit_yuan > 0
+    ):
+        return market.pe * latest_net_profit_yuan
+    return None
 
 
 def _is_profitable(net_profit_yuan: float | None) -> bool:

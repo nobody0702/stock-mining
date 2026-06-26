@@ -80,18 +80,18 @@ def test_submit_analysis_auto_approves(service):
     markdown = """
 | 维度 | 内容 |
 | --- | --- |
-| 怎么赚钱（1-5分） | 4分：靠卖软件订阅赚钱 |
-| 护城河有多深（1-5分） | 3分：有一定客户粘性 |
-| 管理层靠不靠谱（1-5分） | 4分：团队较稳定 |
-| 未来还能不能长大（1-5分） | 3分：行业仍有空间 |
-| 为什么现在便宜（1-5分） | 4分：更像情绪错杀 |
-| 最可能出什么问题（1-5分） | 3分：竞争加剧 |
+| 商业模式（1-5分） | 4分，靠卖软件订阅赚钱 |
+| 护城河（1-5分） | 3分，有一定客户粘性 |
+| 成长性（1-5分） | 3分，行业仍有空间 |
+| 管理层（1-5分） | 4分，团队较稳定 |
+| 企业文化（1-5分） | 3分，总体守规矩 |
+| 安全边际（1-5分） | 4分，PE 显示约 30% 折扣 |
 """
     entry_ids, missing = service.submit_analysis(hit, markdown)
     assert entry_ids
     assert not missing
     cached = service.get_cached_analysis_table(hit)
-    assert "护城河有多深（1-5分）" in cached
+    assert "护城河（1-5分）" in cached
 
 
 def test_load_candidates_from_json(service):

@@ -96,7 +96,7 @@ class CountingProvider(MarketDataProvider):
     def fetch_dividend_map(self) -> dict[str, float]:
         return {"688001": 3.0}
 
-    def fetch_stock_snapshot(self, code: str, name: str) -> MarketSnapshot:
+    def fetch_stock_snapshot(self, code: str, name: str, *, include_dividend: bool = True, fast: bool = False) -> MarketSnapshot:
         return self.fetch_market_snapshots()[code]
 
     def fetch_industry_returns(self, lookback_years: int) -> dict[str, float]:
@@ -106,7 +106,7 @@ class CountingProvider(MarketDataProvider):
         self.industry_calls += 1
         return snapshot
 
-    def fetch_financials(self, code: str) -> StockFinancials:
+    def fetch_financials(self, code: str, *, fast: bool = False) -> StockFinancials:
         self.financial_calls += 1
         return self.financials
 
