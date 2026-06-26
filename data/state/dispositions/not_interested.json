@@ -1870,5 +1870,53 @@
     "reference_price": null,
     "set_at": "2026-06-25T10:43:56.860686",
     "release_at": "2026-09-23T10:43:56.860686"
+  },
+  {
+    "stock_key": "a:688013",
+    "name": "XD天臣医",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T09:51:35.439069",
+    "release_at": "2026-09-24T09:51:35.439069"
+  },
+  {
+    "stock_key": "a:603811",
+    "name": "DR诚意药",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T09:52:21.885890",
+    "release_at": "2026-09-24T09:52:21.885890"
+  },
+  {
+    "stock_key": "a:002161",
+    "name": "远 望 谷",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T10:14:50.274301",
+    "release_at": "2026-09-24T10:14:50.274301"
+  },
+  {
+    "stock_key": "a:688098",
+    "name": "申联生物",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T10:15:29.902363",
+    "release_at": "2026-09-24T10:15:29.902363"
+  },
+  {
+    "stock_key": "a:000722",
+    "name": "湖南发展",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T10:16:13.172813",
+    "release_at": "2026-09-24T10:16:13.172813"
+  },
+  {
+    "stock_key": "a:002985",
+    "name": "北摩高科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-26T10:18:32.579743",
+    "release_at": "2026-09-24T10:18:32.579743"
   }
 ]
