@@ -8,6 +8,7 @@ __pycache__/
 # 本地数据与缓存（运行时生成）
 data/cache/
 data/results/
+.env
 *.sqlite3
 *.csv
 logs/
@@ -17,3 +18,5 @@ logs/
 .DS_Store
 .idea/
 .vscode/
+
+agent_working/

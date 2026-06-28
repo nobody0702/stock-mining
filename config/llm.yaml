@@ -1,0 +1,33 @@
+jiquer:
+  base_url: https://learning-api.jiquer.com/Api/v1/AiAgent
+  model: deepseek
+  url_style: path
+  timeout_sec: 180
+  thinking:
+    enabled_by_default: false
+    extra_body:
+      thinking:
+        type: enabled
+  web_search:
+    enabled_by_default: false
+    extra_body:
+      enable_search: true
+
+# --web-search 时：先自动搜集证据注入 prompt，再调 DeepSeek
+web_context:
+  notice_days: 365
+  max_notices: 20
+  max_dividend_records: 8
+  max_repurchase_records: 5
+  max_search_results_per_query: 3
+  enable_notices: true
+  enable_notice_classification: true
+  enable_dividends: true
+  enable_repurchase: true
+  enable_pledge: true
+  enable_web_search: true
+  jiquer_native_search: false
+  search_queries:
+    - "{name} {code} 财报 分析"
+    - "{name} 管理层 治理 评价"
+    - "{name} 争议 处罚 立案"

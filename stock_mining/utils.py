@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import re
+from pathlib import Path
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -155,3 +157,31 @@ def compare(left: float, operator: str, right: float) -> bool:
     if operator in {"=", "=="}:
         return left == right
     raise ValueError(f"Unsupported operator: {operator}")
+
+
+def load_project_env(env_path: str | Path, *, override: bool = False) -> bool:
+    """Load KEY=VALUE lines from a .env file into os.environ."""
+    path = Path(env_path)
+    if not path.is_file():
+        return False
+    loaded = False
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if not override and key in os.environ and os.environ[key]:
+            continue
+        os.environ[key] = value
+        loaded = True
+    return loaded
