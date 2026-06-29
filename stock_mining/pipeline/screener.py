@@ -14,6 +14,7 @@ from stock_mining.filters.base import Filter
 from stock_mining.filters.registry import build_filters
 from stock_mining.markets.base import Market, normalize_stock_code
 from stock_mining.markets.providers import build_market_providers
+from stock_mining.markets.snapshot_utils import snapshot_needs_price_enrichment
 from stock_mining.models import CandidateHit, MarketSnapshot, ScreenHit, ScreeningContext, StockInfo
 from stock_mining.pipeline.dedup import filter_candidates
 from stock_mining.pipeline.funnel import (
@@ -170,11 +171,12 @@ class DailyScreener:
         bulk_snapshots: dict[str, MarketSnapshot],
     ) -> MarketSnapshot | None:
         snapshot = bulk_snapshots.get(stock.code)
-        if snapshot is not None:
-            return snapshot
-        if stock.market == Market.HK:
-            return provider.fetch_stock_snapshot(stock.code, stock.name)
-        return None
+        if snapshot_needs_price_enrichment(snapshot):
+            fetched = provider.fetch_stock_snapshot(stock.code, stock.name)
+            if fetched.price is not None:
+                return fetched
+            return fetched if snapshot is None else snapshot
+        return snapshot
 
     def _track_passes_without_financials(
         self,

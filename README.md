@@ -30,6 +30,12 @@ python3 scripts/daily_screen.py
 # 1b. 正常估值不下滑（→ normal_value_candidates.json）
 python3 scripts/daily_screen.py --strategy normal_value
 
+# 1c. 港股通 · 错杀成长白马（→ hk_candidates.json）
+python3 scripts/daily_screen.py --strategy mispriced_growth_hk
+
+# 单股 prompt（港股示例）
+python3 scripts/print_prompt.py 00700 --market hk -c config/screen_hk.yaml --meta
+
 # 2. Web 审阅（侧边栏可切换策略；默认打开最近更新的结果）
 python3 scripts/serve_review.py
 python3 scripts/serve_review.py --strategy normal_value   # 指定默认策略
@@ -49,6 +55,7 @@ python3 scripts/audit_screen.py --from-csv data/results/candidates.csv --limit 5
 | 错杀成长白马 | `data/results/candidates.json` | `daily_screen.py` |
 | 正常估值不下滑 | `data/results/normal_value_candidates.json` | `daily_screen.py --strategy normal_value` |
 | 正常估值·商业模式≥4 | `data/results/normal_value_review.json` | `apply_business_model_triage.py` |
+| 港股·错杀成长白马 | `data/results/hk_candidates.json` | `daily_screen.py --strategy mispriced_growth_hk` |
 
 ## 双轨筛选（config/screen.yaml）
 

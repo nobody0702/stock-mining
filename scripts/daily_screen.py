@@ -15,16 +15,17 @@ def _bootstrap_env(root: Path) -> None:
     load_project_env(root / ".env")
 
 
-STRATEGY_IDS = ("mispriced_growth", "normal_value", "normal_value_bm_pass")
+STRATEGY_IDS = ("mispriced_growth", "normal_value", "mispriced_growth_hk")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Daily A/HK stock screener")
     parser.add_argument(
         "--strategy",
-        choices=STRATEGY_IDS[:2],
+        choices=STRATEGY_IDS,
         default="mispriced_growth",
-        help="筛选策略：mispriced_growth=错杀成长白马，normal_value=正常估值的不下滑股",
+        help="筛选策略：mispriced_growth=错杀成长白马(A/HK可配)，"
+        "normal_value=正常估值不下滑(A)，mispriced_growth_hk=港股通错杀成长",
     )
     parser.add_argument(
         "-c",

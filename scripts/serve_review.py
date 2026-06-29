@@ -19,7 +19,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Launch Streamlit review UI")
     parser.add_argument(
         "--strategy",
-        choices=["mispriced_growth", "normal_value", "normal_value_bm_pass"],
+        choices=["mispriced_growth", "normal_value", "normal_value_bm_pass", "mispriced_growth_hk"],
         default=None,
         help="打开时默认选中的筛选策略（也可在侧边栏切换）",
     )

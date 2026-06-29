@@ -284,6 +284,8 @@ def _run_hint(strategy_id: str) -> str:
             "python3 scripts/daily_screen.py --strategy normal_value\n"
             "python3 scripts/apply_business_model_triage.py"
         )
+    if strategy_id == "mispriced_growth_hk":
+        return "python3 scripts/daily_screen.py --strategy mispriced_growth_hk"
     return "python3 scripts/daily_screen.py"
 
 

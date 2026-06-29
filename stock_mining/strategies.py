@@ -31,6 +31,12 @@ STRATEGIES: dict[str, ScreenStrategy] = {
         config_path="config/screen_normal_value.yaml",
         candidates_json="normal_value_review.json",
     ),
+    "mispriced_growth_hk": ScreenStrategy(
+        id="mispriced_growth_hk",
+        label="港股·错杀成长白马",
+        config_path="config/screen_hk.yaml",
+        candidates_json="hk_candidates.json",
+    ),
 }
 
 

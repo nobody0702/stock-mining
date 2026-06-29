@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from stock_mining.data.base import MarketDataProvider
 from stock_mining.llm.dimensions import AnalysisConfig, load_dimensions_config
 from stock_mining.llm.prompt_builder import build_stock_prompt
 from stock_mining.markets.base import Market, normalize_stock_code
@@ -78,11 +79,12 @@ def build_live_stock_prompt(
 
     normalized = normalize_stock_code(code, market)
     provider = screener.providers[market]
+    resolved_name = _resolve_display_name(provider, normalized) or normalized
 
     _log(f"正在拉取 {market.value.upper()}:{normalized} 行情…")
     snapshot = provider.fetch_stock_snapshot(
         normalized,
-        normalized,
+        resolved_name,
         include_dividend=False,
         fast=fast_fetch,
     )
@@ -123,6 +125,13 @@ def build_live_stock_prompt(
         passed_screen=matched_track is not None,
         matched_track=matched_track,
     )
+
+
+def _resolve_display_name(provider: MarketDataProvider, code: str) -> str | None:
+    for stock in provider.list_stocks():
+        if stock.code == code:
+            return stock.name
+    return None
 
 
 def build_live_stock_prompt_from_project(
