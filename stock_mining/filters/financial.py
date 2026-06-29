@@ -182,6 +182,138 @@ class RoeWindowFilter(Filter):
         )
 
 
+class GrossMarginFlexibleFilter(Filter):
+    """At least min_years_meeting years with gross margin >= min_pct in the window.
+
+    If fewer than 2 annual reports exist, require the latest year only.
+    """
+
+    def __init__(
+        self,
+        name: str = "gross_margin_flexible",
+        years: int = 3,
+        min_pct: float = 40.0,
+        min_years_meeting: int = 2,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.years = years
+        self.min_pct = min_pct
+        self.min_years_meeting = min_years_meeting
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报数据")
+
+        if len(window) < 2:
+            latest = window[-1]
+            gm = latest.gross_margin_pct
+            if gm is not None and gm >= self.min_pct:
+                return FilterResult(True, f"仅{len(window)}年数据，最新毛利率 {gm:.1f}% >= {self.min_pct}%")
+            return FilterResult(
+                False,
+                f"仅{len(window)}年数据，最新毛利率未达 {self.min_pct}%",
+            )
+
+        meeting = sum(
+            1
+            for item in window
+            if item.gross_margin_pct is not None and item.gross_margin_pct >= self.min_pct
+        )
+        if meeting >= self.min_years_meeting:
+            return FilterResult(
+                True,
+                f"过去{len(window)}年有 {meeting} 年毛利率 >= {self.min_pct}%",
+            )
+        return FilterResult(
+            False,
+            f"过去{len(window)}年仅 {meeting} 年毛利率 >= {self.min_pct}%，"
+            f"需要至少 {self.min_years_meeting} 年",
+        )
+
+
+class RevenueNotSevereDeclineFilter(Filter):
+    """Reject sustained revenue declines of at least decline_pct per period.
+
+    With 3+ years: fail when two consecutive YoY drops each exceed decline_pct.
+    With 2 years: fail when the single YoY drop exceeds decline_pct.
+    With 1 year: pass only if latest gross margin meets gross_margin_fallback_pct.
+    """
+
+    def __init__(
+        self,
+        name: str = "revenue_not_severe_decline",
+        years: int = 3,
+        decline_pct: float = 10.0,
+        gross_margin_fallback_pct: float = 40.0,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.years = years
+        self.decline_pct = decline_pct
+        self.gross_margin_fallback_pct = gross_margin_fallback_pct
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+
+        window = adaptive_annual_window(financials.annual, self.years)
+        if not window:
+            return FilterResult(False, "缺少年报数据")
+
+        if len(window) == 1:
+            gm = window[0].gross_margin_pct
+            if gm is not None and gm >= self.gross_margin_fallback_pct:
+                return FilterResult(
+                    True,
+                    f"仅1年数据，最新毛利率 {gm:.1f}% >= {self.gross_margin_fallback_pct}%",
+                )
+            return FilterResult(False, "仅1年数据且毛利率不足")
+
+        revenues = [item.revenue_yuan for item in window if item.revenue_yuan is not None]
+        if len(revenues) < 2:
+            latest = window[-1]
+            gm = latest.gross_margin_pct
+            if gm is not None and gm >= self.gross_margin_fallback_pct:
+                return FilterResult(True, "收入缺失，按最新毛利率放行")
+            return FilterResult(False, "缺少可比收入数据")
+
+        required_consecutive = 2 if len(revenues) >= 3 else 1
+        threshold = -self.decline_pct / 100.0
+        consecutive = 0
+        for idx in range(1, len(revenues)):
+            prev, curr = revenues[idx - 1], revenues[idx]
+            if prev <= 0:
+                consecutive = 0
+                continue
+            change = (curr - prev) / prev
+            if change <= threshold:
+                consecutive += 1
+                if consecutive >= required_consecutive:
+                    return FilterResult(
+                        False,
+                        f"营收连续{consecutive}期下滑 >= {self.decline_pct}%",
+                    )
+            else:
+                consecutive = 0
+
+        return FilterResult(True, f"过去{len(revenues)}年营收未持续大幅下滑")
+
+
 class DebtRatioMaxFilter(Filter):
     def __init__(
         self,
@@ -189,12 +321,14 @@ class DebtRatioMaxFilter(Filter):
         threshold_pct: float = 40.0,
         years: int = 3,
         use_latest_annual: bool = True,
+        inclusive: bool = False,
         **_: object,
     ) -> None:
         self.name = name
         self.threshold_pct = threshold_pct
         self.years = years
         self.use_latest_annual = use_latest_annual
+        self.inclusive = inclusive
 
     @property
     def requires_financials(self) -> bool:
@@ -215,16 +349,23 @@ class DebtRatioMaxFilter(Filter):
                 return FilterResult(False, "缺少资产负债率")
             ratios.append(metrics.debt_ratio_pct)
 
-        if any(ratio >= self.threshold_pct for ratio in ratios):
-            bad = next(ratio for ratio in ratios if ratio >= self.threshold_pct)
+        def _exceeds(ratio: float) -> bool:
+            if self.inclusive:
+                return ratio > self.threshold_pct
+            return ratio >= self.threshold_pct
+
+        if any(_exceeds(ratio) for ratio in ratios):
+            bad = next(ratio for ratio in ratios if _exceeds(ratio))
+            op = ">" if self.inclusive else ">="
             return FilterResult(
                 False,
-                f"资产负债率 {bad:.2f}% >= {self.threshold_pct}%",
+                f"资产负债率 {bad:.2f}% {op} {self.threshold_pct}%",
             )
         latest = ratios[-1]
+        bound = "<=" if self.inclusive else "<"
         return FilterResult(
             True,
-            f"过去{len(window)}年资产负债率均 < {self.threshold_pct}%"
+            f"过去{len(window)}年资产负债率均 {bound} {self.threshold_pct}%"
             f"（最新 {latest:.2f}%）",
         )
 

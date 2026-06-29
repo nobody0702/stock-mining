@@ -1,4 +1,4 @@
-# 错杀成长型白马 — 双轨筛选配置
+# 错杀成长型白马 — 双轨筛选配置（--strategy mispriced_growth）
 
 data_source: akshare
 markets: [a]

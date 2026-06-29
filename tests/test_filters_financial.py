@@ -4,11 +4,14 @@ import pytest
 
 from stock_mining.filters.financial import (
     DebtRatioMaxFilter,
+    GrossMarginFlexibleFilter,
     MarginOrWindowFilter,
     OperatingCashflowWindowFilter,
+    RevenueNotSevereDeclineFilter,
     RoeWindowFilter,
 )
-from stock_mining.models import AnnualMetrics, ScreeningContext, StockFinancials, StockInfo
+from stock_mining.filters.market import ValuationByProfitFilter
+from stock_mining.models import AnnualMetrics, MarketSnapshot, ScreeningContext, StockFinancials, StockInfo
 
 
 def _financials(**kwargs) -> StockFinancials:
@@ -244,6 +247,141 @@ def test_roe_window_single_year_requires_high_only():
         financials=StockFinancials(
             "301002",
             [AnnualMetrics(date(2024, 12, 31), roe_pct=9)],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
+def test_gross_margin_flexible_two_of_three():
+    f = GrossMarginFlexibleFilter(years=3, min_pct=40, min_years_meeting=2)
+    ok = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), gross_margin_pct=35),
+                AnnualMetrics(date(2023, 12, 31), gross_margin_pct=42),
+                AnnualMetrics(date(2024, 12, 31), gross_margin_pct=45),
+            ],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("000002", "测试"),
+        financials=StockFinancials(
+            "000002",
+            [
+                AnnualMetrics(date(2022, 12, 31), gross_margin_pct=35),
+                AnnualMetrics(date(2023, 12, 31), gross_margin_pct=38),
+                AnnualMetrics(date(2024, 12, 31), gross_margin_pct=45),
+            ],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
+def test_gross_margin_flexible_single_year():
+    f = GrossMarginFlexibleFilter(years=3, min_pct=40, min_years_meeting=2)
+    ok = ScreeningContext(
+        stock=StockInfo("301001", "新股"),
+        financials=StockFinancials(
+            "301001",
+            [AnnualMetrics(date(2024, 12, 31), gross_margin_pct=41)],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("301002", "新股"),
+        financials=StockFinancials(
+            "301002",
+            [AnnualMetrics(date(2024, 12, 31), gross_margin_pct=39)],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
+def test_revenue_not_severe_decline_three_year_continuous():
+    f = RevenueNotSevereDeclineFilter(years=3, decline_pct=10)
+    ok = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), revenue_yuan=100),
+                AnnualMetrics(date(2023, 12, 31), revenue_yuan=95),
+                AnnualMetrics(date(2024, 12, 31), revenue_yuan=100),
+            ],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("000002", "测试"),
+        financials=StockFinancials(
+            "000002",
+            [
+                AnnualMetrics(date(2022, 12, 31), revenue_yuan=100),
+                AnnualMetrics(date(2023, 12, 31), revenue_yuan=85),
+                AnnualMetrics(date(2024, 12, 31), revenue_yuan=70),
+            ],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
+def test_revenue_not_severe_decline_single_year_gross_margin_fallback():
+    f = RevenueNotSevereDeclineFilter(years=3, decline_pct=10, gross_margin_fallback_pct=40)
+    ok = ScreeningContext(
+        stock=StockInfo("301001", "新股"),
+        financials=StockFinancials(
+            "301001",
+            [AnnualMetrics(date(2024, 12, 31), gross_margin_pct=42)],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("301002", "新股"),
+        financials=StockFinancials(
+            "301002",
+            [AnnualMetrics(date(2024, 12, 31), gross_margin_pct=35)],
+        ),
+    )
+    assert f.evaluate(ok).passed
+    assert not f.evaluate(bad).passed
+
+
+def test_debt_ratio_inclusive_allows_exact_threshold():
+    f = DebtRatioMaxFilter(years=3, threshold_pct=50, inclusive=True)
+    ctx = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [AnnualMetrics(date(2024, 12, 31), debt_ratio_pct=50)],
+        ),
+    )
+    assert f.evaluate(ctx).passed
+
+
+def test_normal_value_valuation_pe_for_large_profit():
+    f = ValuationByProfitFilter(
+        profit_threshold_yuan=100_000_000,
+        pe_max=30,
+        pb_max=4,
+        ps_max=3,
+    )
+    ok = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        market=MarketSnapshot("000001", "测试", pe=25),
+        financials=StockFinancials(
+            "000001",
+            [AnnualMetrics(date(2024, 12, 31), net_profit_yuan=200_000_000)],
+        ),
+    )
+    bad = ScreeningContext(
+        stock=StockInfo("000002", "测试"),
+        market=MarketSnapshot("000002", "测试", pe=35),
+        financials=StockFinancials(
+            "000002",
+            [AnnualMetrics(date(2024, 12, 31), net_profit_yuan=200_000_000)],
         ),
     )
     assert f.evaluate(ok).passed

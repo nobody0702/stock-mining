@@ -12,6 +12,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from stock_mining.models import CandidateHit
+from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
 from stock_mining.web.review_service import ReviewService
 
@@ -53,6 +54,10 @@ def _copy_prompt_button(text: str, *, element_key: str) -> None:
         """,
         height=52,
     )
+
+
+def _candidate_label(hit: CandidateHit) -> str:
+    return f"{hit.name} ({hit.market.value.upper()}:{hit.code})"
 
 
 def _disposition_selector(service: ReviewService, hit: CandidateHit) -> None:
@@ -124,6 +129,14 @@ def _page_candidates(service: ReviewService) -> None:
         st.info("暂无候选，请先运行 daily_screen.py")
         return
 
+    source = payload.get("source")
+    if source == "normal_value_business_model_pass":
+        min_score = payload.get("business_model_min_score", 4)
+        st.success(f"商业模式 ≥{min_score} 分候选（共 {len(candidates)} 只）")
+    generated_at = payload.get("generated_at")
+    if generated_at:
+        st.caption(f"生成时间: {generated_at}")
+
     saved_top_n = payload.get("top_n")
     if saved_top_n is not None:
         st.warning(
@@ -164,9 +177,13 @@ def _page_paste(service: ReviewService) -> None:
         st.info("暂无候选")
         return
 
-    labels = [f"{hit.name} ({hit.market.value}:{hit.code})" for hit in candidates]
-    selected = st.selectbox("选择股票", labels)
-    hit = candidates[labels.index(selected)]
+    by_key = index_by_stock_key(candidates)
+    selected_key = st.selectbox(
+        "选择股票",
+        options=list(by_key.keys()),
+        format_func=lambda key: _candidate_label(by_key[key]),
+    )
+    hit = by_key[selected_key]
 
     prompt = service.build_prompt(hit)
     st.text_area("Prompt（复制到 Cursor）", prompt, height=220)

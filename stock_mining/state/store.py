@@ -366,6 +366,7 @@ class UserStateStore:
         reference_price: float | None = None,
         suppress_days: int = DEFAULT_SUPPRESS_DAYS,
         now: datetime | None = None,
+        release_at: datetime | None = None,
     ) -> None:
         self._dispositions.set_stock_disposition(
             stock_key,
@@ -375,6 +376,7 @@ class UserStateStore:
             reference_price=reference_price,
             suppress_days=suppress_days,
             now=now,
+            release_at=release_at,
         )
 
     def clear_stock_disposition(self, stock_key: str) -> None:

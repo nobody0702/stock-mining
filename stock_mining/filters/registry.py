@@ -5,6 +5,7 @@ from typing import Any
 from stock_mining.filters.base import Filter
 from stock_mining.filters.financial import (
     DebtRatioMaxFilter,
+    GrossMarginFlexibleFilter,
     GrossMarginMinFilter,
     MarginOrWindowFilter,
     OcfToProfitMinFilter,
@@ -12,6 +13,7 @@ from stock_mining.filters.financial import (
     ProfitNotDeterioratingFilter,
     ProfitWindowRelaxedFilter,
     RevenueGrowthWindowFilter,
+    RevenueNotSevereDeclineFilter,
     RoeNotDecliningFilter,
     RoeWindowFilter,
 )
@@ -42,7 +44,9 @@ FILTER_TYPES: dict[str, type[Filter]] = {
     "ocf_to_profit_min": OcfToProfitMinFilter,
     "profit_window_relaxed": ProfitWindowRelaxedFilter,
     "revenue_growth_window": RevenueGrowthWindowFilter,
+    "revenue_not_severe_decline": RevenueNotSevereDeclineFilter,
     "gross_margin_min": GrossMarginMinFilter,
+    "gross_margin_flexible": GrossMarginFlexibleFilter,
     "filter_group_any": FilterGroupAnyFilter,
 }
 

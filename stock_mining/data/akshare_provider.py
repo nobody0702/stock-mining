@@ -407,7 +407,10 @@ class AkshareDataProvider(MarketDataProvider):
         if self.cache is not None:
             cached = self.cache.get("market", cache_key)
             if cached is not None:
-                return MarketSnapshot(**cached)
+                payload = dict(cached)
+                if name:
+                    payload["name"] = name
+                return MarketSnapshot(**payload)
 
         if fast:
             valuation = self._fetch_valuation_fast(code)

@@ -1,0 +1,67 @@
+# 正常估值的不下滑股 — 与 config/screen.yaml（错杀成长白马）并列的策略
+
+data_source: akshare
+markets: [a]
+
+universe:
+  exclude_st: true
+  exclude_bj: true
+  max_stocks: null
+
+common_filters:
+  - name: non_st
+    type: non_st
+
+tracks:
+  normal_valuation_stable:
+    filters:
+      - name: gross_margin_flexible
+        type: gross_margin_flexible
+        years: 3
+        min_pct: 40
+        min_years_meeting: 2
+
+      - name: revenue_not_severe_decline
+        type: revenue_not_severe_decline
+        years: 3
+        decline_pct: 10
+        gross_margin_fallback_pct: 40
+
+      - name: debt_ratio
+        type: debt_ratio_max
+        years: 3
+        threshold_pct: 50
+        inclusive: true
+
+      - name: valuation
+        type: valuation_by_profit
+        profit_threshold_yuan: 100000000
+        pe_max: 30
+        pb_max: 4
+        ps_max: 3
+
+scoring:
+  weights:
+    cheap: 0.5
+    stability: 0.5
+
+output:
+  directory: data/results
+  top_n: null
+  candidates_json: normal_value_candidates.json
+  candidates_csv: normal_value_candidates.csv
+  filename: normal_value_screen.csv
+
+state:
+  db_path: data/state/user_state.sqlite3
+  dispositions_dir: data/state/dispositions
+  disposition_suppress_days: 90
+  too_expensive_drop_ratio: 0.10
+
+fetch:
+  use_cache: true
+  cache_dir: data/cache
+  cache_ttl_hours: 12
+  financial_workers: 4
+  snapshot_workers: 8
+  request_interval_sec: 0.25

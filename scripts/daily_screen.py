@@ -7,13 +7,25 @@ import sys
 from pathlib import Path
 
 
+STRATEGY_CONFIGS = {
+    "mispriced_growth": "config/screen.yaml",
+    "normal_value": "config/screen_normal_value.yaml",
+}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Daily A/HK stock screener")
     parser.add_argument(
+        "--strategy",
+        choices=sorted(STRATEGY_CONFIGS),
+        default="mispriced_growth",
+        help="筛选策略：mispriced_growth=错杀成长白马，normal_value=正常估值的不下滑股",
+    )
+    parser.add_argument(
         "-c",
         "--config",
-        default="config/screen.yaml",
-        help="YAML config path",
+        default=None,
+        help="YAML config path（指定后覆盖 --strategy 默认配置）",
     )
     parser.add_argument(
         "--max-stocks",
@@ -56,7 +68,8 @@ def main() -> int:
     from stock_mining.pipeline.screener import DailyScreener
     from stock_mining.state.store import UserStateStore
 
-    config_path = Path(args.config)
+    config_rel = args.config or STRATEGY_CONFIGS[args.strategy]
+    config_path = Path(config_rel)
     if not config_path.is_absolute():
         config_path = root / config_path
 
@@ -89,6 +102,7 @@ def main() -> int:
     hits = screener.run()
     json_path, csv_path, legacy_path = screener.save(hits)
 
+    print(f"策略: {args.strategy} ({config_rel})")
     print(f"命中 {len(hits)} 只")
     for hit in hits:
         print(f"{hit.market.value}:{hit.code}\t{hit.name}\t{hit.track}\t{hit.score:.1f}")
