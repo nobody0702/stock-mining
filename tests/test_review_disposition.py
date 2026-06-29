@@ -11,6 +11,7 @@ from stock_mining.markets.base import Market
 from stock_mining.models import CandidateHit
 from stock_mining.state.disposition import DispositionKind
 from stock_mining.state.store import UserStateStore
+from stock_mining.strategies import get_strategy
 from stock_mining.web.review_service import ReviewService
 
 
@@ -24,6 +25,8 @@ def service(tmp_path, root) -> ReviewService:
     results_dir = tmp_path / "results"
     results_dir.mkdir()
     return ReviewService(
+        root=root,
+        strategy=get_strategy("mispriced_growth"),
         results_dir=results_dir,
         state=UserStateStore(tmp_path / "state.sqlite3"),
         dimensions_config=load_dimensions_config(root / "config" / "analysis_dimensions.yaml"),

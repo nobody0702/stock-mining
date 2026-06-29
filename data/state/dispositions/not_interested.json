@@ -3734,5 +3734,93 @@
     "reference_price": null,
     "set_at": "2026-06-29T15:06:35.703516",
     "release_at": "2026-09-27T15:06:35.703516"
+  },
+  {
+    "stock_key": "a:688513",
+    "name": "苑东生物",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:25:58.986722",
+    "release_at": "2026-09-27T16:25:58.986722"
+  },
+  {
+    "stock_key": "a:688799",
+    "name": "华纳药厂",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:32:28.381938",
+    "release_at": "2026-09-27T16:32:28.381938"
+  },
+  {
+    "stock_key": "a:688569",
+    "name": "铁科轨道",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:36:15.104007",
+    "release_at": "2026-09-27T16:36:15.104007"
+  },
+  {
+    "stock_key": "a:600641",
+    "name": "先导基电",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:37:34.304425",
+    "release_at": "2026-09-27T16:37:34.304425"
+  },
+  {
+    "stock_key": "a:688330",
+    "name": "宏力达",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:38:48.077753",
+    "release_at": "2026-09-27T16:38:48.077753"
+  },
+  {
+    "stock_key": "a:603848",
+    "name": "好太太",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:40:32.042935",
+    "release_at": "2026-09-27T16:40:32.042935"
+  },
+  {
+    "stock_key": "a:605028",
+    "name": "世茂能源",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:41:33.946794",
+    "release_at": "2026-09-27T16:41:33.946794"
+  },
+  {
+    "stock_key": "a:000715",
+    "name": "中兴商业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:42:17.289025",
+    "release_at": "2026-09-27T16:42:17.289025"
+  },
+  {
+    "stock_key": "a:300099",
+    "name": "尤洛卡",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:46:39.865943",
+    "release_at": "2026-09-27T16:46:39.865943"
+  },
+  {
+    "stock_key": "a:300841",
+    "name": "康华生物",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:49:00.480045",
+    "release_at": "2026-09-27T16:49:00.480045"
+  },
+  {
+    "stock_key": "a:300259",
+    "name": "新天科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T16:52:32.104583",
+    "release_at": "2026-09-27T16:52:32.104583"
   }
 ]

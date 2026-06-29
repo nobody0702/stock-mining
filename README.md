@@ -24,11 +24,15 @@ pip install -r requirements.txt
 ## 一日工作流
 
 ```bash
-# 1. 量化筛股（A 股 + 港股通，双轨 OR，Top 15）
+# 1a. 错杀成长白马（默认 → candidates.json）
 python3 scripts/daily_screen.py
 
-# 2. Web 审阅（黑名单 / 已研究 / 粘贴 LLM 表格 / 默许缓存）
+# 1b. 正常估值不下滑（→ normal_value_candidates.json）
+python3 scripts/daily_screen.py --strategy normal_value
+
+# 2. Web 审阅（侧边栏可切换策略；默认打开最近更新的结果）
 python3 scripts/serve_review.py
+python3 scripts/serve_review.py --strategy normal_value   # 指定默认策略
 
 # 3. 批量导出 Cursor Prompt（可选）
 python3 scripts/export_prompts.py --limit 10
@@ -37,6 +41,14 @@ python3 scripts/export_prompts.py --limit 10
 python3 scripts/audit_screen.py --codes 600519 --market a
 python3 scripts/audit_screen.py --from-csv data/results/candidates.csv --limit 5
 ```
+
+审阅页三种数据源（侧边栏「筛选策略」）：
+
+| 策略 | 数据文件 | 产生方式 |
+|------|----------|----------|
+| 错杀成长白马 | `data/results/candidates.json` | `daily_screen.py` |
+| 正常估值不下滑 | `data/results/normal_value_candidates.json` | `daily_screen.py --strategy normal_value` |
+| 正常估值·商业模式≥4 | `data/results/normal_value_review.json` | `apply_business_model_triage.py` |
 
 ## 双轨筛选（config/screen.yaml）
 

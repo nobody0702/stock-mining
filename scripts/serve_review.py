@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
@@ -15,6 +16,15 @@ def resolve_python(root: Path) -> str:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Launch Streamlit review UI")
+    parser.add_argument(
+        "--strategy",
+        choices=["mispriced_growth", "normal_value", "normal_value_bm_pass"],
+        default=None,
+        help="打开时默认选中的筛选策略（也可在侧边栏切换）",
+    )
+    args = parser.parse_args()
+
     root = Path(__file__).resolve().parents[1]
     app_path = root / "stock_mining" / "web" / "review_app.py"
     python = resolve_python(root)
@@ -29,6 +39,8 @@ def main() -> int:
     ]
     env = os.environ.copy()
     env.setdefault("STREAMLIT_BROWSER_GATHER_USAGE_STATS", "false")
+    if args.strategy:
+        env["STOCK_MINING_REVIEW_STRATEGY"] = args.strategy
     try:
         return subprocess.call(cmd, cwd=root, env=env)
     except FileNotFoundError:

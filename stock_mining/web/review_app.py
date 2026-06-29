@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -11,10 +12,14 @@ if str(ROOT) not in sys.path:
 import streamlit as st
 import streamlit.components.v1 as components
 
-from stock_mining.models import CandidateHit
 from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
-from stock_mining.web.review_service import ReviewService
+from stock_mining.strategies import list_strategies
+from stock_mining.web.review_service import (
+    CandidatesPayload,
+    ReviewService,
+    pick_latest_strategy_id,
+)
 
 DISPOSITION_KINDS = [
     DispositionKind.NOT_INTERESTED,
@@ -24,7 +29,6 @@ DISPOSITION_KINDS = [
 
 
 def _copy_prompt_button(text: str, *, element_key: str) -> None:
-    """One-click copy via browser clipboard (Streamlit buttons cannot copy by themselves)."""
     safe_id = element_key.replace(":", "_").replace("-", "_")
     payload = json.dumps(text, ensure_ascii=False)
     components.html(
@@ -56,11 +60,11 @@ def _copy_prompt_button(text: str, *, element_key: str) -> None:
     )
 
 
-def _candidate_label(hit: CandidateHit) -> str:
+def _candidate_label(hit) -> str:
     return f"{hit.name} ({hit.market.value.upper()}:{hit.code})"
 
 
-def _disposition_selector(service: ReviewService, hit: CandidateHit) -> None:
+def _disposition_selector(service: ReviewService, hit) -> None:
     current = service.get_disposition_kind(hit.stock_key)
     st.caption("标记（三选一，可随时修改）")
     cols = st.columns(len(DISPOSITION_KINDS))
@@ -70,7 +74,7 @@ def _disposition_selector(service: ReviewService, hit: CandidateHit) -> None:
             btn_type = "primary" if current == kind else "secondary"
             if st.button(
                 label,
-                key=f"disp-{kind}-{hit.stock_key}",
+                key=f"disp-{kind}-{service.strategy_id}-{hit.stock_key}",
                 type=btn_type,
                 use_container_width=True,
             ):
@@ -98,9 +102,60 @@ def _disposition_rows(service: ReviewService, kind: str) -> list[dict[str, objec
     return rows
 
 
-def main() -> None:
+def _init_strategy_session(default_strategy: str | None) -> str:
+    if "review_strategy_id" not in st.session_state:
+        st.session_state.review_strategy_id = default_strategy or pick_latest_strategy_id(ROOT)
+    return st.session_state.review_strategy_id
+
+
+def _sidebar_strategy_selector(default_strategy: str | None) -> str:
+    strategy_ids = [item.id for item in list_strategies()]
+    labels = {item.id: item.label for item in list_strategies()}
+    current = _init_strategy_session(default_strategy)
+    if current not in strategy_ids:
+        current = pick_latest_strategy_id(ROOT)
+        st.session_state.review_strategy_id = current
+
+    selected = st.sidebar.selectbox(
+        "筛选策略",
+        options=strategy_ids,
+        index=strategy_ids.index(current),
+        format_func=lambda sid: labels[sid],
+    )
+    st.session_state.review_strategy_id = selected
+
+    json_path = ReviewService.from_project_root(ROOT, strategy_id=selected).candidates_json_path()
+    if json_path.exists():
+        st.sidebar.caption(f"数据文件: `{json_path.name}`")
+        st.sidebar.caption(f"更新时间: {datetime.fromtimestamp(json_path.stat().st_mtime):%Y-%m-%d %H:%M}")
+    else:
+        st.sidebar.warning(f"尚未生成 `{json_path.name}`")
+        st.sidebar.code(_run_hint(selected), language="bash")
+    return selected
+
+
+def _render_payload_banner(payload: CandidatesPayload, service: ReviewService) -> None:
+    st.caption(
+        f"策略: **{service.strategy_label}** · 文件: `{payload.json_path.name}` · "
+        f"共 {len(payload.candidates)} 只"
+    )
+    if payload.run_at:
+        st.caption(f"运行时间: {payload.run_at}")
+    if payload.source == "normal_value_business_model_pass":
+        min_score = payload.business_model_min_score or 4
+        st.success(f"商业模式 ≥{min_score} 分子集")
+    if payload.top_n is not None:
+        st.warning(
+            f"当前结果带有 top_n={payload.top_n} 截断。"
+            "请重新运行 daily_screen（不要加 --top-n）以加载全部命中。"
+        )
+
+
+def main(default_strategy: str | None = None) -> None:
     st.set_page_config(page_title="stock-mining 审阅", layout="wide")
-    service = ReviewService.from_project_root(ROOT)
+
+    strategy_id = _sidebar_strategy_selector(default_strategy)
+    service = ReviewService.from_project_root(ROOT, strategy_id=strategy_id)
     service.release_expired_dispositions()
 
     page = st.sidebar.radio(
@@ -118,34 +173,18 @@ def main() -> None:
 
 def _page_candidates(service: ReviewService) -> None:
     st.header("今日候选")
-    json_path = service.results_dir / "candidates.json"
-    if not json_path.exists():
-        st.info("暂无候选，请先运行 daily_screen.py")
+    payload = service.load_candidates_payload()
+    if payload is None:
+        st.info("暂无候选，请先运行对应策略")
+        st.code(_run_hint(service.strategy_id), language="bash")
+        return
+    if not payload.candidates:
+        st.info("候选列表为空")
         return
 
-    payload = json.loads(json_path.read_text(encoding="utf-8"))
-    candidates = [CandidateHit.from_dict(item) for item in payload.get("candidates", [])]
-    if not candidates:
-        st.info("暂无候选，请先运行 daily_screen.py")
-        return
+    _render_payload_banner(payload, service)
 
-    source = payload.get("source")
-    if source == "normal_value_business_model_pass":
-        min_score = payload.get("business_model_min_score", 4)
-        st.success(f"商业模式 ≥{min_score} 分候选（共 {len(candidates)} 只）")
-    generated_at = payload.get("generated_at")
-    if generated_at:
-        st.caption(f"生成时间: {generated_at}")
-
-    saved_top_n = payload.get("top_n")
-    if saved_top_n is not None:
-        st.warning(
-            f"当前结果文件带有 top_n={saved_top_n} 截断。"
-            "请重新运行 `python3 scripts/daily_screen.py`（不要加 --top-n）以加载全部命中。"
-        )
-    st.caption(f"共 {len(candidates)} 只（全部过滤命中）")
-
-    for hit in candidates:
+    for hit in payload.candidates:
         st.divider()
         header_cols = st.columns([3, 2])
         with header_cols[0]:
@@ -158,13 +197,16 @@ def _page_candidates(service: ReviewService) -> None:
                 st.table(cached)
         with header_cols[1]:
             prompt_text = service.build_prompt(hit)
-            _copy_prompt_button(prompt_text, element_key=f"prompt-{hit.stock_key}")
+            _copy_prompt_button(
+                prompt_text,
+                element_key=f"prompt-{service.strategy_id}-{hit.stock_key}",
+            )
             with st.expander("查看 Prompt", expanded=False):
                 st.text_area(
                     "Prompt 文本",
                     prompt_text,
                     height=180,
-                    key=f"prompt-view-{hit.stock_key}",
+                    key=f"prompt-view-{service.strategy_id}-{hit.stock_key}",
                     label_visibility="collapsed",
                 )
             _disposition_selector(service, hit)
@@ -172,12 +214,13 @@ def _page_candidates(service: ReviewService) -> None:
 
 def _page_paste(service: ReviewService) -> None:
     st.header("粘贴分析")
-    candidates = service.load_candidates()
-    if not candidates:
+    payload = service.load_candidates_payload()
+    if payload is None or not payload.candidates:
         st.info("暂无候选")
         return
 
-    by_key = index_by_stock_key(candidates)
+    _render_payload_banner(payload, service)
+    by_key = index_by_stock_key(payload.candidates)
     selected_key = st.selectbox(
         "选择股票",
         options=list(by_key.keys()),
@@ -233,5 +276,19 @@ def _page_my_marks(service: ReviewService) -> None:
                     st.rerun()
 
 
+def _run_hint(strategy_id: str) -> str:
+    if strategy_id == "normal_value":
+        return "python3 scripts/daily_screen.py --strategy normal_value"
+    if strategy_id == "normal_value_bm_pass":
+        return (
+            "python3 scripts/daily_screen.py --strategy normal_value\n"
+            "python3 scripts/apply_business_model_triage.py"
+        )
+    return "python3 scripts/daily_screen.py"
+
+
 if __name__ == "__main__":
-    main()
+    import os
+
+    default = os.environ.get("STOCK_MINING_REVIEW_STRATEGY") or None
+    main(default_strategy=default)

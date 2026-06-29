@@ -30,8 +30,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--review-json",
-        default="data/results/candidates.json",
-        help="serve_review 读取的候选 JSON",
+        default="data/results/normal_value_review.json",
+        help="商业模式≥4 子集，供 serve_review 的「正常估值·商业模式≥4」",
     )
     parser.add_argument(
         "--dispositions-dir",
@@ -117,9 +117,11 @@ def main() -> int:
         store.clear_stock_disposition(hit.stock_key)
 
     review_payload = {
+        "strategy": "normal_value_bm_pass",
         "source": "normal_value_business_model_pass",
         "business_model_min_score": args.min_pass_score,
         "generated_at": now.isoformat(),
+        "run_at": now.isoformat(timespec="seconds"),
         "top_n": None,
         "count": len(pass_hits),
         "candidates": [hit.to_dict() for hit in pass_hits],

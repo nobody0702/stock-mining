@@ -2,22 +2,27 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 
-STRATEGY_CONFIGS = {
-    "mispriced_growth": "config/screen.yaml",
-    "normal_value": "config/screen_normal_value.yaml",
-}
+def _bootstrap_env(root: Path) -> None:
+    from stock_mining.utils import load_project_env
+
+    load_project_env(root / ".env")
+
+
+STRATEGY_IDS = ("mispriced_growth", "normal_value", "normal_value_bm_pass")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Daily A/HK stock screener")
     parser.add_argument(
         "--strategy",
-        choices=sorted(STRATEGY_CONFIGS),
+        choices=STRATEGY_IDS[:2],
         default="mispriced_growth",
         help="筛选策略：mispriced_growth=错杀成长白马，normal_value=正常估值的不下滑股",
     )
@@ -67,11 +72,14 @@ def main() -> int:
     from stock_mining.markets.base import Market
     from stock_mining.pipeline.screener import DailyScreener
     from stock_mining.state.store import UserStateStore
+    from stock_mining.strategies import get_strategy, resolve_config_path
 
-    config_rel = args.config or STRATEGY_CONFIGS[args.strategy]
-    config_path = Path(config_rel)
-    if not config_path.is_absolute():
-        config_path = root / config_path
+    strategy = get_strategy(args.strategy)
+    config_path = resolve_config_path(root, args.strategy)
+    if args.config:
+        config_path = Path(args.config)
+        if not config_path.is_absolute():
+            config_path = root / config_path
 
     config = load_pipeline_config(config_path)
     state_store = None if args.skip_dedup else UserStateStore(
@@ -102,7 +110,12 @@ def main() -> int:
     hits = screener.run()
     json_path, csv_path, legacy_path = screener.save(hits)
 
-    print(f"策略: {args.strategy} ({config_rel})")
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    payload["strategy"] = strategy.id
+    payload["run_at"] = datetime.now().isoformat(timespec="seconds")
+    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    print(f"策略: {strategy.label} ({strategy.config_path})")
     print(f"命中 {len(hits)} 只")
     for hit in hits:
         print(f"{hit.market.value}:{hit.code}\t{hit.name}\t{hit.track}\t{hit.score:.1f}")
