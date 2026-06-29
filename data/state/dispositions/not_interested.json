@@ -3638,5 +3638,101 @@
     "reference_price": null,
     "set_at": "2026-06-29T13:03:37.049361",
     "release_at": "2026-09-27T13:03:37.049361"
+  },
+  {
+    "stock_key": "a:603036",
+    "name": "如通股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:01:42.258200",
+    "release_at": "2026-09-27T14:01:42.258200"
+  },
+  {
+    "stock_key": "a:301330",
+    "name": "熵基科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:05:52.243313",
+    "release_at": "2026-09-27T14:05:52.243313"
+  },
+  {
+    "stock_key": "a:301609",
+    "name": "山大电力",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:07:32.885652",
+    "release_at": "2026-09-27T14:07:32.885652"
+  },
+  {
+    "stock_key": "a:300634",
+    "name": "彩讯股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:11:10.695816",
+    "release_at": "2026-09-27T14:11:10.695816"
+  },
+  {
+    "stock_key": "a:688113",
+    "name": "联测科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:14:50.857375",
+    "release_at": "2026-09-27T14:14:50.857375"
+  },
+  {
+    "stock_key": "a:301299",
+    "name": "卓创资讯",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:18:52.128530",
+    "release_at": "2026-09-27T14:18:52.128530"
+  },
+  {
+    "stock_key": "a:605086",
+    "name": "龙高股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:26:22.968793",
+    "release_at": "2026-09-27T14:26:22.968793"
+  },
+  {
+    "stock_key": "a:300902",
+    "name": "国安达",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:41:51.561795",
+    "release_at": "2026-09-27T14:41:51.561795"
+  },
+  {
+    "stock_key": "a:300525",
+    "name": "博思软件",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:42:30.130729",
+    "release_at": "2026-09-27T14:42:30.130729"
+  },
+  {
+    "stock_key": "a:300189",
+    "name": "神农种业",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T14:43:04.800514",
+    "release_at": "2026-09-27T14:43:04.800514"
+  },
+  {
+    "stock_key": "a:003005",
+    "name": "竞业达",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T15:04:06.213127",
+    "release_at": "2026-09-27T15:04:06.213127"
+  },
+  {
+    "stock_key": "a:688579",
+    "name": "地纬智能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T15:06:35.703516",
+    "release_at": "2026-09-27T15:06:35.703516"
   }
 ]

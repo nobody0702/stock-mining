@@ -142,5 +142,13 @@
     "reference_price": null,
     "set_at": "2026-06-25T10:21:44.470260",
     "release_at": null
+  },
+  {
+    "stock_key": "a:301552",
+    "name": "科力装备",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-29T13:59:07.077666",
+    "release_at": null
   }
 ]
