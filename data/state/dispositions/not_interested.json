@@ -3822,5 +3822,37 @@
     "reference_price": null,
     "set_at": "2026-06-29T16:52:32.104583",
     "release_at": "2026-09-27T16:52:32.104583"
+  },
+  {
+    "stock_key": "a:601199",
+    "name": "江南水务",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-30T13:05:05.648484",
+    "release_at": "2026-09-28T13:05:05.648484"
+  },
+  {
+    "stock_key": "a:603193",
+    "name": "润本股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-30T13:05:35.644046",
+    "release_at": "2026-09-28T13:05:35.644046"
+  },
+  {
+    "stock_key": "a:603402",
+    "name": "陕西旅游",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-30T13:06:15.178475",
+    "release_at": "2026-09-28T13:06:15.178475"
+  },
+  {
+    "stock_key": "a:603015",
+    "name": "弘讯科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-06-30T13:07:13.898182",
+    "release_at": "2026-09-28T13:07:13.898182"
   }
 ]
