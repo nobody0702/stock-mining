@@ -14,6 +14,7 @@ from stock_mining.data.akshare_provider import (
 )
 from stock_mining.markets.base import Market
 from stock_mining.markets.hk_connect import AkshareHkConnectProvider
+from stock_mining.markets.hk_sina_spot import HkSinaSpotQuote
 from stock_mining.models import MarketSnapshot
 
 
@@ -499,6 +500,7 @@ def test_hk_list_stocks_normalizes_codes(monkeypatch, hk_provider):
 
 
 def test_hk_fetch_valuation_uses_daily_close_not_open(monkeypatch, hk_provider):
+    hk_provider._sina_spot_quotes = {}
     df = pd.DataFrame(
         {
             "close": [100.0] * 259 + [120.0],
@@ -516,6 +518,16 @@ def test_hk_fetch_valuation_uses_daily_close_not_open(monkeypatch, hk_provider):
     assert val["low_52w"] == pytest.approx(100.0)
     assert val["high_52w"] == pytest.approx(120.0)
     assert val["drawdown_from_high_pct"] == pytest.approx(0.0)
+
+
+def test_hk_fetch_valuation_prefers_sina_spot_quotes(hk_provider):
+    hk_provider._sina_spot_quotes = {
+        "00700": HkSinaSpotQuote(price=50.0, low_52w=45.0, high_52w=100.0),
+    }
+    val = hk_provider._fetch_valuation("00700")
+    assert val["price"] == pytest.approx(50.0)
+    assert val["low_52w"] == pytest.approx(45.0)
+    assert val["drawdown_from_high_pct"] == pytest.approx(50.0)
 
 
 def test_hk_parse_financials_supports_bilingual_columns(hk_provider):
@@ -547,6 +559,7 @@ def test_hk_parse_financials_supports_bilingual_columns(hk_provider):
 
 
 def test_hk_fetch_valuation_returns_none_fields_on_failure(monkeypatch, hk_provider):
+    hk_provider._sina_spot_quotes = {}
     monkeypatch.setattr(
         "stock_mining.markets.hk_connect.ak.stock_hk_daily",
         lambda symbol, adjust: (_ for _ in ()).throw(ConnectionError("down")),

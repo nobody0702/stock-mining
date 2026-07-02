@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, timedelta
@@ -15,10 +16,12 @@ from stock_mining.data.akshare_network import format_proxy_error
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct, normalize_stock_code
 from stock_mining.markets.hk_ggt_sina import fetch_hk_ggt_constituents_sina
 from stock_mining.markets.hk_indicators import parse_hk_indicator_metrics
+from stock_mining.markets.hk_sina_spot import HkSinaSpotQuote, fetch_hk_spot_quotes_sina
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import coalesce_row, parse_money_to_yuan, parse_number, parse_percent, parse_report_date
 
 TRADING_DAYS_52W = 260
+_HK_DAILY_LOCK = threading.Lock()
 
 
 class AkshareHkConnectProvider(MarketDataProvider):
@@ -42,6 +45,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
         self.network_retries = network_retries
         self.snapshot_workers = max(1, snapshot_workers)
         self._last_request_at = 0.0
+        self._sina_spot_quotes: dict[str, HkSinaSpotQuote] | None = None
         self.cache = (
             SqliteCache(cache_dir, ttl_hours=cache_ttl_hours, namespace_prefix="hk")
             if use_cache
@@ -105,6 +109,45 @@ class AkshareHkConnectProvider(MarketDataProvider):
             )
         return stocks
 
+    def _ensure_sina_spot_quotes(self) -> dict[str, HkSinaSpotQuote]:
+        if self._sina_spot_quotes is not None:
+            return self._sina_spot_quotes
+
+        cache_key = "sina_spot_quotes"
+        if self.cache is not None:
+            cached = self.cache.get("market", cache_key)
+            if cached is not None:
+                self._sina_spot_quotes = {
+                    code: HkSinaSpotQuote(
+                        price=item.get("price"),
+                        low_52w=item.get("low_52w"),
+                        high_52w=item.get("high_52w"),
+                    )
+                    for code, item in cached.items()
+                }
+                return self._sina_spot_quotes
+
+        self._throttle()
+        quotes = fetch_hk_spot_quotes_sina(
+            network_retries=self.network_retries,
+            request_interval_sec=self.request_interval_sec,
+        )
+        self._sina_spot_quotes = quotes
+        if self.cache is not None:
+            self.cache.set(
+                "market",
+                cache_key,
+                {
+                    code: {
+                        "price": quote.price,
+                        "low_52w": quote.low_52w,
+                        "high_52w": quote.high_52w,
+                    }
+                    for code, quote in quotes.items()
+                },
+            )
+        return quotes
+
     def fetch_dividend_map(self) -> dict[str, float]:
         return {}
 
@@ -127,6 +170,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
     ) -> dict[str, MarketSnapshot]:
         if not snapshots:
             return {}
+        self._ensure_sina_spot_quotes()
         workers = min(self.snapshot_workers, len(snapshots))
         enriched: dict[str, MarketSnapshot] = {}
 
@@ -245,12 +289,23 @@ class AkshareHkConnectProvider(MarketDataProvider):
         return metrics
 
     def _fetch_valuation(self, code: str) -> dict[str, float | None]:
+        quote = self._ensure_sina_spot_quotes().get(code)
+        if quote is not None and quote.price is not None:
+            return {
+                "price": quote.price,
+                "low_52w": quote.low_52w,
+                "high_52w": quote.high_52w,
+                "drawdown_from_high_pct": calc_drawdown_from_high_pct(
+                    quote.price,
+                    quote.high_52w,
+                ),
+            }
+
         self._throttle()
-        end = date.today()
-        start = end - timedelta(days=400)
 
         def _fetch() -> pd.DataFrame:
-            return ak.stock_hk_daily(symbol=code, adjust="qfq")
+            with _HK_DAILY_LOCK:
+                return ak.stock_hk_daily(symbol=code, adjust="qfq")
 
         try:
             df = call_with_retry(_fetch, retries=self.network_retries)

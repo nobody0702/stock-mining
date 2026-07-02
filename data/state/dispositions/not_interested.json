@@ -4142,5 +4142,37 @@
     "reference_price": null,
     "set_at": "2026-07-01T21:18:36.982773",
     "release_at": "2027-07-01T21:18:36.982773"
+  },
+  {
+    "stock_key": "h:00506",
+    "name": "中国食品",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-02T18:19:12.307016",
+    "release_at": "2027-01-01T18:19:12.307016"
+  },
+  {
+    "stock_key": "h:00697",
+    "name": "首程控股",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-02T18:23:54.602139",
+    "release_at": "2027-01-01T18:23:54.602139"
+  },
+  {
+    "stock_key": "h:00010",
+    "name": "恒隆集团",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-02T18:25:15.587003",
+    "release_at": "2027-01-01T18:25:15.587003"
+  },
+  {
+    "stock_key": "h:00101",
+    "name": "恒隆地产",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-02T18:25:50.103949",
+    "release_at": "2027-01-01T18:25:50.103949"
   }
 ]
