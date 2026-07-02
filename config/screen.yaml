@@ -108,7 +108,7 @@ output:
 state:
   db_path: data/state/user_state.sqlite3
   dispositions_dir: data/state/dispositions
-  disposition_suppress_days: 90
+  disposition_suppress_days: 183
   too_expensive_drop_ratio: 0.10
 
 fetch:

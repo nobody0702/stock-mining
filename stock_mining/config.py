@@ -52,7 +52,7 @@ class StateConfig:
     db_path: str = "data/state/user_state.sqlite3"
     blacklist_release_days: int = 180
     recommendation_cooldown_days: int = 30
-    disposition_suppress_days: int = 90
+    disposition_suppress_days: int = 183
     too_expensive_drop_ratio: float = 0.10
     dispositions_dir: str = "data/state/dispositions"
 
@@ -149,7 +149,7 @@ def load_pipeline_config(path: str | Path) -> PipelineConfig:
             db_path=str(state_raw.get("db_path", "data/state/user_state.sqlite3")),
             blacklist_release_days=int(state_raw.get("blacklist_release_days", 180)),
             recommendation_cooldown_days=int(state_raw.get("recommendation_cooldown_days", 30)),
-            disposition_suppress_days=int(state_raw.get("disposition_suppress_days", 90)),
+            disposition_suppress_days=int(state_raw.get("disposition_suppress_days", 183)),
             too_expensive_drop_ratio=float(state_raw.get("too_expensive_drop_ratio", 0.10)),
             dispositions_dir=str(state_raw.get("dispositions_dir", "data/state/dispositions")),
         ),
