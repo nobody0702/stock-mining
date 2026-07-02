@@ -5,6 +5,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from stock_mining.markets.tags import normalize_legacy_stock_key
 from stock_mining.state.disposition import (
     DEFAULT_SUPPRESS_DAYS,
     DispositionKind,
@@ -71,7 +72,7 @@ class DispositionFileStore:
 
         self._remove_stock_key(stock_key)
         payload = {
-            "stock_key": stock_key,
+            "stock_key": normalize_legacy_stock_key(stock_key),
             "name": name,
             "market": market,
             "reference_price": ref_price,
@@ -93,7 +94,7 @@ class DispositionFileStore:
     ) -> StockDispositionEntry | None:
         for kind in _KIND_FILES:
             for index, raw in enumerate(self._load(kind), start=1):
-                if raw["stock_key"] != stock_key:
+                if normalize_legacy_stock_key(str(raw["stock_key"])) != normalize_legacy_stock_key(stock_key):
                     continue
                 entry = self._to_entry(raw, kind, index)
                 if active_only:
@@ -132,8 +133,13 @@ class DispositionFileStore:
         return released
 
     def _remove_stock_key(self, stock_key: str) -> None:
+        normalized = normalize_legacy_stock_key(stock_key)
         for kind in _KIND_FILES:
-            entries = [item for item in self._load(kind) if item["stock_key"] != stock_key]
+            entries = [
+                item
+                for item in self._load(kind)
+                if normalize_legacy_stock_key(str(item["stock_key"])) != normalized
+            ]
             self._save(kind, entries)
 
     def _path(self, kind: str) -> Path:
@@ -154,7 +160,7 @@ class DispositionFileStore:
         release = raw.get("release_at")
         return StockDispositionEntry(
             id=index,
-            stock_key=str(raw["stock_key"]),
+            stock_key=normalize_legacy_stock_key(str(raw["stock_key"])),
             name=str(raw["name"]),
             market=str(raw["market"]),
             disposition=kind,

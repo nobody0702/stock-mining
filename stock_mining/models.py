@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from stock_mining.markets.base import Market, calc_drawdown_from_high_pct
+from stock_mining.markets.base import Market, calc_drawdown_from_high_pct, normalize_stock_code, parse_market
+from stock_mining.markets.stock_key import build_stock_key, parse_stock_key
 
 
 @dataclass(frozen=True)
@@ -87,24 +88,36 @@ class CandidateHit:
 
     @property
     def stock_key(self) -> str:
-        return f"{self.market.value}:{self.code}"
+        return build_stock_key(self.market, self.code)
+
+    @property
+    def tagged_code(self) -> str:
+        return self.stock_key
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "code": self.code,
+            "code": self.stock_key,
             "name": self.name,
             "market": self.market.value,
             "track": self.track,
             "score": round(self.score, 2),
             "metrics": self.metrics,
+            "stock_key": self.stock_key,
         }
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> CandidateHit:
+        raw_code = str(payload.get("code", ""))
+        raw_market = payload.get("market", "a")
+        if ":" in raw_code:
+            market, code = parse_stock_key(raw_code)
+        else:
+            market = parse_market(str(raw_market))
+            code = normalize_stock_code(raw_code, market)
         return cls(
-            code=str(payload["code"]),
+            code=code,
             name=str(payload["name"]),
-            market=Market(str(payload.get("market", "a"))),
+            market=market,
             track=str(payload["track"]),
             score=float(payload["score"]),
             metrics=dict(payload.get("metrics", {})),

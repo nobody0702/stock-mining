@@ -15,9 +15,9 @@ def main() -> int:
     parser.add_argument("code", help="股票代码，如 603605 或 00700")
     parser.add_argument(
         "--market",
-        choices=["a", "hk"],
+        choices=["a", "h", "hk", "u"],
         default="a",
-        help="市场（默认 a 股）",
+        help="市场：a=A股, h=港股, u=美股(预留); hk 为 h 的别名",
     )
     parser.add_argument(
         "-c",
@@ -63,7 +63,7 @@ def main() -> int:
     os.chdir(root)
 
     from stock_mining.llm.dimensions import load_dimensions_config
-    from stock_mining.markets.base import Market
+    from stock_mining.markets.base import Market, parse_market
     from stock_mining.pipeline.single_stock import (
         ScreenMissError,
         build_live_stock_prompt,
@@ -78,7 +78,7 @@ def main() -> int:
     if not dimensions_path.is_absolute():
         dimensions_path = root / dimensions_path
 
-    market = Market(args.market)
+    market = parse_market(args.market)
     use_cache = False if args.no_cache else None
 
     try:

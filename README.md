@@ -24,17 +24,20 @@ pip install -r requirements.txt
 ## 一日工作流
 
 ```bash
-# 1a. 错杀成长白马（默认 → candidates.json）
-python3 scripts/daily_screen.py
+# 1a. 被错杀的白马股（A 股 → candidates.json）
+python3 scripts/daily_screen.py --strategy mispriced_growth --market a
 
-# 1b. 正常估值不下滑（→ normal_value_candidates.json）
-python3 scripts/daily_screen.py --strategy normal_value
+# 1b. 正常估值不下滑（A 股 → normal_value_candidates.json）
+python3 scripts/daily_screen.py --strategy normal_value --market a
 
-# 1c. 港股通 · 错杀成长白马（→ hk_candidates.json）
-python3 scripts/daily_screen.py --strategy mispriced_growth_hk
+# 1c. 港股通·被错杀的白马股（→ hk_candidates.json）
+python3 scripts/daily_screen.py --strategy mispriced_growth_hk --market h
 
-# 单股 prompt（港股示例）
-python3 scripts/print_prompt.py 00700 --market hk -c config/screen_hk.yaml --meta
+# 1d. 所有策略 + 所有市场（→ 各策略 JSON + all_candidates.json）
+python3 scripts/daily_screen.py --strategy all --market all
+
+# 股票代码带市场前缀，避免撞码：a:600519  h:00700
+python3 scripts/daily_screen.py --strategy all --codes a:600519 h:00700 --market all --skip-dedup
 
 # 2. Web 审阅（侧边栏可切换策略；默认打开最近更新的结果）
 python3 scripts/serve_review.py
@@ -52,10 +55,13 @@ python3 scripts/audit_screen.py --from-csv data/results/candidates.csv --limit 5
 
 | 策略 | 数据文件 | 产生方式 |
 |------|----------|----------|
-| 错杀成长白马 | `data/results/candidates.json` | `daily_screen.py` |
-| 正常估值不下滑 | `data/results/normal_value_candidates.json` | `daily_screen.py --strategy normal_value` |
+| 被错杀的白马股 | `data/results/candidates.json` | `--strategy mispriced_growth --market a` |
+| 正常估值不下滑 | `data/results/normal_value_candidates.json` | `--strategy normal_value --market a` |
+| 港股·被错杀的白马股 | `data/results/hk_candidates.json` | `--strategy mispriced_growth_hk --market h` |
+| 所有策略合并 | `data/results/all_candidates.json` | `--strategy all --market all` |
 | 正常估值·商业模式≥4 | `data/results/normal_value_review.json` | `apply_business_model_triage.py` |
-| 港股·错杀成长白马 | `data/results/hk_candidates.json` | `daily_screen.py --strategy mispriced_growth_hk` |
+
+股票唯一标识：`a:600519`（A股）、`h:00700`（港股）、`u:`（美股预留）。历史 `hk:` 会自动视为 `h:`。
 
 ## 双轨筛选（config/screen.yaml）
 

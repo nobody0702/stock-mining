@@ -11,7 +11,9 @@ from tqdm import tqdm
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
 from stock_mining.data.http_retry import call_with_retry
+from stock_mining.data.akshare_network import format_proxy_error
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct, normalize_stock_code
+from stock_mining.markets.hk_ggt_sina import fetch_hk_ggt_constituents_sina
 from stock_mining.markets.hk_indicators import parse_hk_indicator_metrics
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import coalesce_row, parse_money_to_yuan, parse_number, parse_percent, parse_report_date
@@ -54,6 +56,35 @@ class AkshareHkConnectProvider(MarketDataProvider):
             time.sleep(self.request_interval_sec - elapsed)
         self._last_request_at = time.time()
 
+    def _fetch_ggt_components(self) -> list[StockInfo]:
+        def _fetch_eastmoney() -> pd.DataFrame:
+            return ak.stock_hk_ggt_components_em()
+
+        try:
+            df = call_with_retry(_fetch_eastmoney, retries=self.network_retries)
+            return [
+                StockInfo(
+                    code=normalize_stock_code(str(row["代码"]), Market.HK),
+                    name=str(row["名称"]).strip(),
+                    market=Market.HK,
+                )
+                for _, row in df.iterrows()
+            ]
+        except Exception as exc:
+            hint = format_proxy_error(exc)
+            try:
+                return fetch_hk_ggt_constituents_sina(
+                    network_retries=self.network_retries,
+                    request_interval_sec=self.request_interval_sec,
+                )
+            except Exception as fallback_exc:
+                if hint is not None:
+                    raise RuntimeError(hint) from exc
+                raise RuntimeError(
+                    "港股通成份股拉取失败：东方财富 push2.eastmoney.com 连接被断开，"
+                    "新浪财经备用源也未成功。请检查网络能否访问国内财经站点，或稍后重试。"
+                ) from fallback_exc
+
     def list_stocks(self) -> list[StockInfo]:
         cache_key = "ggt_components"
         if self.cache is not None:
@@ -65,19 +96,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
                 ]
 
         self._throttle()
-
-        def _fetch() -> pd.DataFrame:
-            return ak.stock_hk_ggt_components_em()
-
-        df = call_with_retry(_fetch, retries=self.network_retries)
-        stocks = [
-            StockInfo(
-                code=normalize_stock_code(str(row["代码"]), Market.HK),
-                name=str(row["名称"]).strip(),
-                market=Market.HK,
-            )
-            for _, row in df.iterrows()
-        ]
+        stocks = self._fetch_ggt_components()
         if self.cache is not None:
             self.cache.set(
                 "market",

@@ -13,6 +13,7 @@ from stock_mining.data.base import MarketDataProvider
 from stock_mining.filters.base import Filter
 from stock_mining.filters.registry import build_filters
 from stock_mining.markets.base import Market, normalize_stock_code
+from stock_mining.markets.stock_key import parse_stock_input
 from stock_mining.markets.providers import build_market_providers
 from stock_mining.markets.snapshot_utils import snapshot_needs_price_enrichment
 from stock_mining.models import CandidateHit, MarketSnapshot, ScreenHit, ScreeningContext, StockInfo
@@ -39,6 +40,132 @@ class TrackEvaluator:
 class _FinancialCandidate:
     stock: StockInfo
     snapshot: MarketSnapshot
+
+
+@dataclass
+class _UnifiedFinancialItem:
+    stock: StockInfo
+    snapshot: MarketSnapshot
+    screener_indices: list[int]
+
+
+def run_unified_screeners_for_market(
+    market: Market,
+    screeners: list[DailyScreener],
+    *,
+    universe: list[StockInfo] | None = None,
+) -> list[list[CandidateHit]]:
+    """Evaluate multiple screeners on one market with a single data fetch pass."""
+    if not screeners:
+        return []
+
+    primary = screeners[0]
+    provider = primary.providers[market]
+    if universe is None:
+        universe = primary.build_universe(market)
+
+    lookback_years = 3
+    for screener in screeners:
+        for spec in screener.config.common_filters:
+            if spec.get("type") == "non_declining_industry":
+                lookback_years = max(
+                    lookback_years,
+                    int(spec.get("lookback_years", 3)),
+                )
+
+    needs_industry_returns = any(s._needs_industry_returns for s in screeners)
+    industry_returns = (
+        provider.fetch_industry_returns(lookback_years) if needs_industry_returns else {}
+    )
+
+    universe_codes = {stock.code for stock in universe}
+    bulk_snapshots = provider.fetch_market_snapshots(universe_codes)
+
+    hits_per_screener: list[list[CandidateHit]] = [[] for _ in screeners]
+    financial_queue: dict[str, _UnifiedFinancialItem] = {}
+
+    for stock in tqdm(universe, desc=f"market-filter-{market.value}"):
+        snapshot = primary._resolve_snapshot(provider, stock, bulk_snapshots)
+        if snapshot is None:
+            continue
+
+        working_snapshot = snapshot
+        if any(s._needs_industry_field for s in screeners) and working_snapshot.industry is None:
+            working_snapshot = provider.enrich_snapshot_industry(working_snapshot)
+
+        for idx, screener in enumerate(screeners):
+            ctx = screener._build_context(stock, working_snapshot, industry_returns)
+            if screener._common_market and not passes_filters(ctx, screener._common_market):
+                continue
+            if screener._common_industry and not passes_filters(ctx, screener._common_industry):
+                continue
+
+            if screener._needs_financial_fetch(ctx):
+                item = financial_queue.get(stock.code)
+                if item is None:
+                    item = _UnifiedFinancialItem(
+                        stock=stock,
+                        snapshot=working_snapshot,
+                        screener_indices=[],
+                    )
+                    financial_queue[stock.code] = item
+                item.screener_indices.append(idx)
+                continue
+
+            matched_track = screener._match_track(ctx)
+            if matched_track is not None:
+                hits_per_screener[idx].append(
+                    screener._candidate_hit(ctx, matched_track, stock.market)
+                )
+
+    workers = max(1, max(s.config.fetch.financial_workers for s in screeners))
+    label = f"financial-{market.value}"
+
+    def _evaluate_unified(item: _UnifiedFinancialItem) -> list[tuple[int, CandidateHit]]:
+        financials = provider.fetch_financials(item.stock.code)
+        matched: list[tuple[int, CandidateHit]] = []
+        for idx in item.screener_indices:
+            screener = screeners[idx]
+            ctx = screener._build_context(
+                item.stock,
+                item.snapshot,
+                industry_returns,
+                financials,
+            )
+            matched_track = screener._match_track(ctx)
+            if matched_track is not None:
+                matched.append(
+                    (
+                        idx,
+                        screener._candidate_hit(ctx, matched_track, item.stock.market),
+                    )
+                )
+        return matched
+
+    if financial_queue:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(_evaluate_unified, item): item
+                for item in financial_queue.values()
+            }
+            for future in tqdm(as_completed(futures), total=len(futures), desc=label):
+                for idx, hit in future.result():
+                    hits_per_screener[idx].append(hit)
+
+    for screener, hits in zip(screeners, hits_per_screener):
+        hits.sort(key=lambda item: item.score, reverse=True)
+        top_n = screener.config.output.top_n
+        if top_n:
+            del hits[top_n:]
+        if screener.state_store is not None:
+            trimmed = filter_candidates(
+                hits,
+                screener.state_store,
+                drop_ratio=screener.config.state.too_expensive_drop_ratio,
+            )
+            hits[:] = trimmed
+
+    return hits_per_screener
 
 
 class DailyScreener:
@@ -116,14 +243,19 @@ class DailyScreener:
         provider = self.providers[market]
         if self.config.universe.codes:
             name_map = {item.code: item.name for item in provider.list_stocks()}
-            return [
-                StockInfo(
-                    code=normalize_stock_code(code, market),
-                    name=name_map.get(normalize_stock_code(code, market), code),
-                    market=market,
+            stocks: list[StockInfo] = []
+            for token in self.config.universe.codes:
+                token_market, bare = parse_stock_input(token, default_market=market)
+                if token_market != market:
+                    continue
+                stocks.append(
+                    StockInfo(
+                        code=bare,
+                        name=name_map.get(bare, bare),
+                        market=market,
+                    )
                 )
-                for code in self.config.universe.codes
-            ]
+            return stocks
 
         stocks = provider.list_stocks()
         filtered: list[StockInfo] = []
@@ -371,6 +503,7 @@ class DailyScreener:
             for hit in hits:
                 row = hit.to_dict()
                 metrics = row.pop("metrics", {})
+                row.pop("stock_key", None)
                 writer.writerow({**row, **metrics})
 
         with legacy_path.open("w", encoding="utf-8-sig", newline="") as fp:
@@ -379,7 +512,7 @@ class DailyScreener:
             for hit in hits:
                 writer.writerow(
                     {
-                        "code": hit.code,
+                        "code": hit.stock_key,
                         "name": hit.name,
                         "market": hit.market.value,
                         "track": hit.track,

@@ -25,7 +25,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--market",
-        choices=["a", "hk"],
+        choices=["a", "h", "hk", "u"],
         default="a",
     )
     parser.add_argument(
@@ -93,7 +93,7 @@ def main() -> int:
     from stock_mining.llm.stock_analyzer import analyze_stock, format_result_table
     from stock_mining.llm.stock_resolver import StockResolveError, resolve_stock_inputs
     from stock_mining.llm.web_context import build_web_context
-    from stock_mining.markets.base import Market
+    from stock_mining.markets.base import parse_market
     from stock_mining.pipeline.single_stock import build_live_stock_prompt, load_live_screener
 
     llm_cfg = load_llm_config(root / args.llm_config)
@@ -113,7 +113,7 @@ def main() -> int:
     )
     jiquer_native = llm_cfg.web_context.jiquer_native_search
 
-    market = Market(args.market)
+    market = parse_market(args.market)
     config_path = root / args.config
     dimensions = load_dimensions_config(root / args.dimensions)
     use_cache = False if args.no_cache else None

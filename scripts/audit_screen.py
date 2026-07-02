@@ -15,9 +15,9 @@ def main() -> int:
     parser.add_argument("--codes", nargs="+", default=None)
     parser.add_argument(
         "--market",
-        choices=["a", "hk"],
+        choices=["a", "h", "hk", "u"],
         default="a",
-        help="Market for manual codes",
+        help="市场：a=A股, h=港股, u=美股(预留)",
     )
     parser.add_argument(
         "--from-csv",
@@ -32,7 +32,8 @@ def main() -> int:
     os.chdir(root)
 
     from stock_mining.audit.verifier import audit_context
-    from stock_mining.markets.base import Market, normalize_stock_code
+    from stock_mining.markets.base import Market, normalize_stock_code, parse_market
+    from stock_mining.markets.stock_key import parse_stock_key
     from stock_mining.models import StockInfo
     from stock_mining.pipeline.screener import DailyScreener
 
@@ -41,7 +42,7 @@ def main() -> int:
         config_path = root / config_path
 
     screener = DailyScreener.from_yaml(config_path, state_store=None)
-    market = Market(args.market)
+    market = parse_market(args.market)
     provider = screener.providers[market]
     codes = _resolve_codes(args, root, market)
     if args.limit is not None:
@@ -91,19 +92,32 @@ def main() -> int:
 
 def _resolve_codes(args: argparse.Namespace, root: Path, market: Market) -> list[str]:
     if args.codes:
-        return [normalize_stock_code(code, market) for code in args.codes]
+        from stock_mining.markets.stock_key import parse_stock_input
+
+        codes: list[str] = []
+        for token in args.codes:
+            token_market, bare = parse_stock_input(token, default_market=market)
+            if token_market != market:
+                continue
+            codes.append(bare)
+        return codes
     if args.from_csv:
         csv_path = Path(args.from_csv)
         if not csv_path.is_absolute():
             csv_path = root / csv_path
         with csv_path.open(encoding="utf-8-sig") as fp:
             rows = list(csv.DictReader(fp))
-        codes: list[str] = []
+        codes = []
         for row in rows:
-            row_market = Market(row.get("market", market.value))
-            if row_market != market and args.market:
+            raw_code = row["code"]
+            if ":" in raw_code:
+                row_market, bare = parse_stock_key(raw_code)
+            else:
+                row_market = parse_market(row.get("market", market.value))
+                bare = normalize_stock_code(raw_code, row_market)
+            if row_market != market:
                 continue
-            codes.append(normalize_stock_code(row["code"], row_market))
+            codes.append(bare)
         return codes
     raise SystemExit("请指定 --codes 或 --from-csv")
 

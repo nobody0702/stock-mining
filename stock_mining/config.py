@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from stock_mining.markets.base import Market, normalize_stock_code
+from stock_mining.markets.base import Market, parse_market
 from stock_mining.utils import normalize_code
 
 
@@ -80,7 +80,7 @@ class PipelineConfig:
 def _parse_markets(raw: list[str] | None) -> list[Market]:
     if not raw:
         return [Market.A]
-    return [Market(item) for item in raw]
+    return [parse_market(str(item)) for item in raw]
 
 
 def load_pipeline_config(path: str | Path) -> PipelineConfig:

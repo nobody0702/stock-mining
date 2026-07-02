@@ -3854,5 +3854,293 @@
     "reference_price": null,
     "set_at": "2026-06-30T13:07:13.898182",
     "release_at": "2026-09-28T13:07:13.898182"
+  },
+  {
+    "stock_key": "h:01361",
+    "name": "３６１度",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T19:45:34.100993",
+    "release_at": "2026-09-29T19:45:34.100993"
+  },
+  {
+    "stock_key": "h:01368",
+    "name": "特步国际",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T19:47:06.064871",
+    "release_at": "2026-09-29T19:47:06.064871"
+  },
+  {
+    "stock_key": "h:00762",
+    "name": "中国联通",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T19:49:07.374304",
+    "release_at": "2026-09-29T19:49:07.374304"
+  },
+  {
+    "stock_key": "h:00811",
+    "name": "新华文轩",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:09:53.759568",
+    "release_at": "2026-09-29T20:09:53.759568"
+  },
+  {
+    "stock_key": "h:03933",
+    "name": "联邦制药",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:14:24.684591",
+    "release_at": "2026-09-29T20:14:24.684591"
+  },
+  {
+    "stock_key": "h:00728",
+    "name": "中国电信",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:14:50.535841",
+    "release_at": "2026-09-29T20:14:50.535841"
+  },
+  {
+    "stock_key": "h:00941",
+    "name": "中国移动",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:14:53.192616",
+    "release_at": "2026-09-29T20:14:53.192616"
+  },
+  {
+    "stock_key": "h:09985",
+    "name": "卫龙美味",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:20:21.882409",
+    "release_at": "2026-09-29T20:20:21.882409"
+  },
+  {
+    "stock_key": "h:02192",
+    "name": "医脉通",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:21:45.835638",
+    "release_at": "2026-09-29T20:21:45.835638"
+  },
+  {
+    "stock_key": "h:02367",
+    "name": "巨子生物",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:25:06.381627",
+    "release_at": "2026-09-29T20:25:06.381627"
+  },
+  {
+    "stock_key": "h:00839",
+    "name": "中教控股",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:25:36.947988",
+    "release_at": "2026-09-29T20:25:36.947988"
+  },
+  {
+    "stock_key": "h:01513",
+    "name": "丽珠医药",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:30:55.320148",
+    "release_at": "2026-09-29T20:30:55.320148"
+  },
+  {
+    "stock_key": "h:00667",
+    "name": "中国东方教育",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:33:00.470929",
+    "release_at": "2026-09-29T20:33:00.470929"
+  },
+  {
+    "stock_key": "h:03868",
+    "name": "信义能源",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:33:23.157328",
+    "release_at": "2026-09-29T20:33:23.157328"
+  },
+  {
+    "stock_key": "h:01896",
+    "name": "猫眼娱乐",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:37:52.743921",
+    "release_at": "2026-09-29T20:37:52.743921"
+  },
+  {
+    "stock_key": "h:02186",
+    "name": "绿叶制药",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:45:14.467124",
+    "release_at": "2026-09-29T20:45:14.467124"
+  },
+  {
+    "stock_key": "h:01789",
+    "name": "爱康医疗",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:48:46.239645",
+    "release_at": "2026-09-29T20:48:46.239645"
+  },
+  {
+    "stock_key": "h:01066",
+    "name": "威高股份",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:52:08.002435",
+    "release_at": "2026-09-29T20:52:08.002435"
+  },
+  {
+    "stock_key": "h:06826",
+    "name": "昊海生物科技",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:52:34.006282",
+    "release_at": "2026-09-29T20:52:34.006282"
+  },
+  {
+    "stock_key": "h:00780",
+    "name": "同程旅行",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:53:36.931880",
+    "release_at": "2026-09-29T20:53:36.931880"
+  },
+  {
+    "stock_key": "h:02331",
+    "name": "李宁",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T20:53:58.762191",
+    "release_at": "2026-09-29T20:53:58.762191"
+  },
+  {
+    "stock_key": "h:01318",
+    "name": "毛戈平",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:00:40.245742",
+    "release_at": "2026-09-29T21:00:40.245742"
+  },
+  {
+    "stock_key": "h:00336",
+    "name": "华宝国际",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:01:03.294507",
+    "release_at": "2026-09-29T21:01:03.294507"
+  },
+  {
+    "stock_key": "h:00512",
+    "name": "远大医药",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:04:10.144666",
+    "release_at": "2026-09-29T21:04:10.144666"
+  },
+  {
+    "stock_key": "h:03888",
+    "name": "金山软件",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:04:34.437040",
+    "release_at": "2026-09-29T21:04:34.437040"
+  },
+  {
+    "stock_key": "h:01357",
+    "name": "美图公司",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:05:16.065012",
+    "release_at": "2026-09-29T21:05:16.065012"
+  },
+  {
+    "stock_key": "h:06683",
+    "name": "巨星传奇",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:06:48.036943",
+    "release_at": "2026-09-29T21:06:48.036943"
+  },
+  {
+    "stock_key": "h:02276",
+    "name": "康耐特光学",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:07:37.432188",
+    "release_at": "2026-09-29T21:07:37.432188"
+  },
+  {
+    "stock_key": "h:02460",
+    "name": "华润饮料",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:08:38.589293",
+    "release_at": "2026-09-29T21:08:38.589293"
+  },
+  {
+    "stock_key": "h:06955",
+    "name": "博安生物",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:08:50.428693",
+    "release_at": "2026-09-29T21:08:50.428693"
+  },
+  {
+    "stock_key": "h:02635",
+    "name": "诺比侃",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:11:46.327805",
+    "release_at": "2026-09-29T21:11:46.327805"
+  },
+  {
+    "stock_key": "h:00268",
+    "name": "金蝶国际",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:14:39.413817",
+    "release_at": "2026-09-29T21:14:39.413817"
+  },
+  {
+    "stock_key": "h:00772",
+    "name": "阅文集团",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:15:20.942423",
+    "release_at": "2026-09-29T21:15:20.942423"
+  },
+  {
+    "stock_key": "h:06186",
+    "name": "中国飞鹤",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:15:48.199027",
+    "release_at": "2026-09-29T21:15:48.199027"
+  },
+  {
+    "stock_key": "h:01302",
+    "name": "先健科技",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:17:47.556936",
+    "release_at": "2026-09-29T21:17:47.556936"
+  },
+  {
+    "stock_key": "h:01177",
+    "name": "中国生物制药",
+    "market": "h",
+    "reference_price": null,
+    "set_at": "2026-07-01T21:18:36.982773",
+    "release_at": "2026-09-29T21:18:36.982773"
   }
 ]
