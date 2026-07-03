@@ -15,7 +15,7 @@ from stock_mining.data.akshare_provider import (
 from stock_mining.markets.base import Market
 from stock_mining.markets.hk_connect import AkshareHkConnectProvider
 from stock_mining.markets.hk_sina_spot import HkSinaSpotQuote
-from stock_mining.models import MarketSnapshot
+from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials
 
 
 @pytest.fixture
@@ -167,6 +167,9 @@ def test_fetch_market_snapshots_maps_em_columns_to_correct_fields(monkeypatch, a
     assert maotai.market == Market.A
     assert maotai.price == pytest.approx(1800.0)
     assert maotai.pe == pytest.approx(28.5)
+    assert maotai.pe_dynamic == pytest.approx(28.5)
+    assert maotai.pe_ttm is None
+    assert maotai.pe_static is None
     assert maotai.pb == pytest.approx(8.1)
     assert maotai.dividend_yield_pct == pytest.approx(1.5)
 
@@ -327,6 +330,7 @@ def test_fetch_stock_snapshot_maps_value_em_columns(monkeypatch, a_provider):
         {
             "当日收盘价": [1800.0],
             "PE(TTM)": [28.5],
+            "PE(静)": [32.0],
             "市净率": [8.1],
             "市销率": [11.2],
         }
@@ -347,6 +351,9 @@ def test_fetch_stock_snapshot_maps_value_em_columns(monkeypatch, a_provider):
     snap = a_provider.fetch_stock_snapshot("600519", "贵州茅台")
     assert snap.price == pytest.approx(1800.0)
     assert snap.pe == pytest.approx(28.5)
+    assert snap.pe_ttm == pytest.approx(28.5)
+    assert snap.pe_static == pytest.approx(32.0)
+    assert snap.pe_dynamic is None
     assert snap.pb == pytest.approx(8.1)
     assert snap.ps == pytest.approx(11.2)
     assert snap.industry == "白酒"
@@ -399,6 +406,7 @@ def test_parse_financials_maps_ths_columns_and_sorts_by_date(a_provider):
                 "经营现金流量净额": 80.0,
                 "资产负债率": "35%",
                 "净资产收益率": "12.5%",
+                "基本每股收益": 10.5,
             },
             {
                 "报告期": "2023-12-31",
@@ -428,6 +436,7 @@ def test_parse_financials_maps_ths_columns_and_sorts_by_date(a_provider):
     assert latest.gross_margin_pct == pytest.approx(45.5)
     assert latest.roe_pct == pytest.approx(12.5)
     assert latest.debt_ratio_pct == pytest.approx(35.0)
+    assert latest.eps_basic == pytest.approx(10.5)
 
 
 def test_parse_financials_does_not_swap_profit_and_revenue(a_provider):
@@ -453,6 +462,25 @@ def test_parse_financials_empty_and_damaged_input(a_provider):
     assert a_provider._parse_financials("600519", df).annual == []
 
 
+def test_apply_rd_expense_map_merges_by_report_date(a_provider):
+    financials = StockFinancials(
+        "688001",
+        annual=[
+            AnnualMetrics(date(2024, 12, 31), revenue_yuan=100.0),
+            AnnualMetrics(date(2025, 12, 31), revenue_yuan=120.0),
+        ],
+    )
+    merged = a_provider._apply_rd_expense_map(
+        financials,
+        {
+            date(2024, 12, 31): 10_000_000.0,
+            date(2025, 12, 31): 15_000_000.0,
+        },
+    )
+    assert merged.annual[0].rd_expense_yuan == pytest.approx(10_000_000.0)
+    assert merged.annual[1].rd_expense_yuan == pytest.approx(15_000_000.0)
+
+
 def test_fetch_financials_roundtrips_through_cache(monkeypatch, a_provider):
     df = pd.DataFrame(
         [
@@ -474,6 +502,7 @@ def test_fetch_financials_roundtrips_through_cache(monkeypatch, a_provider):
         "stock_mining.data.akshare_provider.ak.stock_financial_abstract_ths",
         fetch_once,
     )
+    monkeypatch.setattr(a_provider, "_fetch_rd_expense_map", lambda code, fast=False: {})
 
     first = a_provider.fetch_financials("600519")
     second = a_provider.fetch_financials("600519")

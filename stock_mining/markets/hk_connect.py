@@ -11,10 +11,11 @@ from tqdm import tqdm
 
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
-from stock_mining.data.http_retry import call_with_retry
+from stock_mining.data.http_retry import call_with_retry, call_with_timeout
 from stock_mining.data.akshare_network import format_proxy_error
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct, normalize_stock_code
 from stock_mining.markets.hk_ggt_sina import fetch_hk_ggt_constituents_sina
+from stock_mining.markets.pe_metrics import replace_market_snapshot
 from stock_mining.markets.hk_indicators import parse_hk_indicator_metrics
 from stock_mining.markets.hk_sina_spot import HkSinaSpotQuote, fetch_hk_spot_quotes_sina
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
@@ -229,6 +230,9 @@ class AkshareHkConnectProvider(MarketDataProvider):
             high_52w=valuation.get("high_52w"),
             drawdown_from_high_pct=valuation.get("drawdown_from_high_pct"),
             pe=indicators.get("pe"),
+            pe_ttm=indicators.get("pe_ttm"),
+            pe_static=indicators.get("pe_static"),
+            pe_dynamic=indicators.get("pe_dynamic"),
             pb=indicators.get("pb"),
             ps=indicators.get("ps"),
             dividend_yield_pct=indicators.get("dividend_yield_pct")
@@ -244,21 +248,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
         if snapshot.industry is not None:
             return snapshot
         industry = self._fetch_industry(snapshot.code)
-        return MarketSnapshot(
-            code=snapshot.code,
-            name=snapshot.name,
-            market=snapshot.market,
-            industry=industry,
-            price=snapshot.price,
-            low_52w=snapshot.low_52w,
-            high_52w=snapshot.high_52w,
-            drawdown_from_high_pct=snapshot.drawdown_from_high_pct,
-            pe=snapshot.pe,
-            pb=snapshot.pb,
-            ps=snapshot.ps,
-            dividend_yield_pct=snapshot.dividend_yield_pct,
-            market_cap_yuan=snapshot.market_cap_yuan,
-        )
+        return replace_market_snapshot(snapshot, industry=industry)
 
     def _fetch_industry(self, code: str) -> str | None:
         return None
@@ -338,20 +328,50 @@ class AkshareHkConnectProvider(MarketDataProvider):
             if cached is not None:
                 return deserialize_financials(cached)
 
-        self._throttle()
-
-        def _fetch() -> pd.DataFrame:
-            return ak.stock_financial_hk_analysis_indicator_em(symbol=code, indicator="年度")
-
-        try:
-            df = call_with_retry(_fetch, retries=self.network_retries)
-        except Exception:
-            df = pd.DataFrame()
-
-        financials = self._parse_financials(code, df)
+        annual_df = self._fetch_hk_financial_indicator_df(code, indicator="年度", fast=fast)
+        interim_df = self._fetch_hk_financial_indicator_df(code, indicator="报告期", fast=fast)
+        financials = self._parse_financials(code, self._merge_hk_financial_frames(annual_df, interim_df))
         if self.cache is not None:
             self.cache.set("financial", code, serialize_financials(financials))
         return financials
+
+    def _fetch_hk_financial_indicator_df(
+        self,
+        code: str,
+        *,
+        indicator: str,
+        fast: bool,
+    ) -> pd.DataFrame:
+        self._throttle()
+
+        def _fetch() -> pd.DataFrame:
+            return ak.stock_financial_hk_analysis_indicator_em(symbol=code, indicator=indicator)
+
+        try:
+            if fast:
+                return call_with_timeout(
+                    _fetch,
+                    timeout_sec=15.0,
+                    retries=1,
+                )
+            return call_with_retry(_fetch, retries=self.network_retries)
+        except Exception:
+            return pd.DataFrame()
+
+    @staticmethod
+    def _merge_hk_financial_frames(annual_df: pd.DataFrame, interim_df: pd.DataFrame) -> pd.DataFrame:
+        frames = [frame for frame in (annual_df, interim_df) if frame is not None and not frame.empty]
+        if not frames:
+            return pd.DataFrame()
+        merged = pd.concat(frames, ignore_index=True)
+        date_col = "REPORT_DATE" if "REPORT_DATE" in merged.columns else "报告期"
+        if date_col not in merged.columns:
+            return merged
+        merged = merged.copy()
+        merged["_report_date_key"] = merged[date_col].astype(str)
+        merged = merged.drop_duplicates(subset=["_report_date_key"], keep="last")
+        merged = merged.drop(columns=["_report_date_key"])
+        return merged
 
     @staticmethod
     def _parse_financials(code: str, df: pd.DataFrame) -> StockFinancials:
@@ -384,7 +404,10 @@ class AkshareHkConnectProvider(MarketDataProvider):
                     debt_ratio_pct=parse_percent(
                         coalesce_row(row, "资产负债率", "DEBT_ASSET_RATIO")
                     ),
-                    roe_pct=parse_percent(coalesce_row(row, "净资产收益率", "ROE")),
+                    roe_pct=parse_percent(
+                        coalesce_row(row, "净资产收益率", "ROE_AVG", "ROE")
+                    ),
+                    eps_basic=parse_number(coalesce_row(row, "BASIC_EPS", "基本每股收益")),
                 )
             )
         annual.sort(key=lambda item: item.report_date)

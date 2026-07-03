@@ -160,6 +160,12 @@ def main() -> int:
     if set(job_ids) == set(MINING_STRATEGIES.keys()):
         print(f"\n合并总计 {total} 只 → data/results/all_candidates.json")
 
+    if len(job_ids) == 1:
+        review_cmd = f"python3 scripts/serve_review.py --strategy {job_ids[0]}"
+    else:
+        review_cmd = "python3 scripts/serve_review.py"
+    print(f"\n下一步：运行 {review_cmd} 打开审阅页，在网页中手工筛选、标记候选股")
+
     return 0
 
 

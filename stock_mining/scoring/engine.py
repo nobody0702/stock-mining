@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from stock_mining.config import ScoringConfig
 from stock_mining.models import MarketSnapshot, ScreeningContext, StockFinancials
+from stock_mining.scoring.financial_metrics import (
+    extract_financial_quant_metrics,
+    latest_annual_profit_and_cashflow,
+)
 from stock_mining.scoring.valuation import compute_valuation_metrics, load_valuation_scenarios
 from stock_mining.utils import adaptive_annual_window
 
@@ -42,17 +46,10 @@ def extract_metrics(ctx: ScreeningContext, score: float, components: dict[str, f
     latest_net_profit: float | None = None
     latest_operating_cashflow: float | None = None
     if financials is not None:
-        window = adaptive_annual_window(financials.annual, 3)
-        metrics["roe_values"] = [item.roe_pct for item in window]
-        if window:
-            latest = window[-1]
-            latest_net_profit = latest.net_profit_yuan
-            latest_revenue = latest.revenue_yuan
-            latest_operating_cashflow = latest.operating_cashflow_yuan
-            metrics["latest_net_profit"] = latest_net_profit
-            metrics["latest_revenue"] = latest_revenue
-            metrics["latest_operating_cashflow"] = latest_operating_cashflow
-            metrics["profitable"] = _is_profitable(latest_net_profit)
+        metrics.update(extract_financial_quant_metrics(financials))
+        latest_revenue, latest_net_profit, latest_operating_cashflow = (
+            latest_annual_profit_and_cashflow(financials)
+        )
     if market is not None:
         metrics.update(
             {
@@ -61,6 +58,9 @@ def extract_metrics(ctx: ScreeningContext, score: float, components: dict[str, f
                 "high_52w": market.high_52w,
                 "drawdown_pct": market.drawdown_from_high_pct,
                 "pe": market.pe,
+                "pe_ttm": market.pe_ttm,
+                "pe_static": market.pe_static,
+                "pe_dynamic": market.pe_dynamic,
                 "pb": market.pb,
                 "ps": market.ps,
                 "dividend_yield_pct": market.dividend_yield_pct,

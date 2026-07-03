@@ -97,6 +97,8 @@ def serialize_financials(financials: StockFinancials) -> dict[str, Any]:
                 "operating_cashflow_yuan": item.operating_cashflow_yuan,
                 "debt_ratio_pct": item.debt_ratio_pct,
                 "roe_pct": item.roe_pct,
+                "eps_basic": item.eps_basic,
+                "rd_expense_yuan": item.rd_expense_yuan,
             }
             for item in financials.annual
         ],
@@ -119,6 +121,8 @@ def deserialize_financials(payload: dict[str, Any]) -> StockFinancials:
             operating_cashflow_yuan=item.get("operating_cashflow_yuan"),
             debt_ratio_pct=item.get("debt_ratio_pct"),
             roe_pct=item.get("roe_pct"),
+            eps_basic=item.get("eps_basic"),
+            rd_expense_yuan=item.get("rd_expense_yuan"),
         )
         for item in payload.get("annual", [])
     ]

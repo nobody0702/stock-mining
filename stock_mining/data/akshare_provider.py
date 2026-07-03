@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import replace
 from datetime import date, timedelta
 
 import akshare as ak
@@ -12,6 +13,12 @@ from stock_mining.data.base import MarketDataProvider
 from stock_mining.data.cache import SqliteCache, deserialize_financials, serialize_financials
 from stock_mining.data.http_retry import call_with_retry, call_with_timeout
 from stock_mining.markets.base import Market, calc_drawdown_from_high_pct
+from stock_mining.markets.pe_metrics import (
+    merge_pe_fields,
+    parse_pe_from_spot_row,
+    parse_pe_from_value_em_row,
+    replace_market_snapshot,
+)
 from stock_mining.models import AnnualMetrics, MarketSnapshot, StockFinancials, StockInfo
 from stock_mining.utils import (
     coalesce_row,
@@ -130,12 +137,14 @@ class AkshareDataProvider(MarketDataProvider):
             code = normalize_code(str(row["代码"]))
             if codes is not None and code not in codes:
                 continue
+            pe_fields = parse_pe_from_spot_row(row)
             snapshots[code] = MarketSnapshot(
                 code=code,
                 name=str(row["名称"]).strip(),
                 market=Market.A,
                 price=_safe_float(row.get("最新价")),
-                pe=_safe_float(row.get("市盈率-动态")),
+                pe=pe_fields["pe"],
+                pe_dynamic=pe_fields["pe_dynamic"],
                 pb=_safe_float(row.get("市净率")),
                 market_cap_yuan=_parse_market_cap_yuan(row.get("总市值")),
                 dividend_yield_pct=dividend_map.get(code),
@@ -153,6 +162,18 @@ class AkshareDataProvider(MarketDataProvider):
             payload = payloads.get(code)
             if payload is None:
                 continue
+            pe_merge = merge_pe_fields(
+                pe_ttm=snapshot.pe_ttm
+                if snapshot.pe_ttm is not None
+                else _safe_float(payload.get("pe_ttm")),
+                pe_static=snapshot.pe_static
+                if snapshot.pe_static is not None
+                else _safe_float(payload.get("pe_static")),
+                pe_dynamic=snapshot.pe_dynamic
+                if snapshot.pe_dynamic is not None
+                else _safe_float(payload.get("pe_dynamic")),
+                fallback_pe=snapshot.pe if snapshot.pe is not None else _safe_float(payload.get("pe")),
+            )
             snapshots[code] = MarketSnapshot(
                 code=snapshot.code,
                 name=snapshot.name,
@@ -164,7 +185,10 @@ class AkshareDataProvider(MarketDataProvider):
                 drawdown_from_high_pct=snapshot.drawdown_from_high_pct
                 if snapshot.drawdown_from_high_pct is not None
                 else _safe_float(payload.get("drawdown_from_high_pct")),
-                pe=snapshot.pe if snapshot.pe is not None else _safe_float(payload.get("pe")),
+                pe=pe_merge["pe"],
+                pe_ttm=pe_merge["pe_ttm"],
+                pe_static=pe_merge["pe_static"],
+                pe_dynamic=pe_merge["pe_dynamic"],
                 pb=snapshot.pb if snapshot.pb is not None else _safe_float(payload.get("pb")),
                 ps=snapshot.ps if snapshot.ps is not None else _safe_float(payload.get("ps")),
                 dividend_yield_pct=(
@@ -183,21 +207,7 @@ class AkshareDataProvider(MarketDataProvider):
         if snapshot.industry is not None:
             return snapshot
         industry = self._fetch_industry(snapshot.code)
-        return MarketSnapshot(
-            code=snapshot.code,
-            name=snapshot.name,
-            market=snapshot.market,
-            industry=industry,
-            price=snapshot.price,
-            low_52w=snapshot.low_52w,
-            high_52w=snapshot.high_52w,
-            drawdown_from_high_pct=snapshot.drawdown_from_high_pct,
-            pe=snapshot.pe,
-            pb=snapshot.pb,
-            ps=snapshot.ps,
-            dividend_yield_pct=snapshot.dividend_yield_pct,
-            market_cap_yuan=snapshot.market_cap_yuan,
-        )
+        return replace_market_snapshot(snapshot, industry=industry)
 
     def _fetch_bulk_spot(self) -> pd.DataFrame:
         cache_key = "bulk_spot_em"
@@ -286,22 +296,13 @@ class AkshareDataProvider(MarketDataProvider):
             cached = self._load_cached_52w(code)
             if cached is not None:
                 high_52w = cached.get("high_52w")
-                snapshots[code] = MarketSnapshot(
-                    code=snapshot.code,
-                    name=snapshot.name,
-                    market=snapshot.market,
-                    industry=snapshot.industry,
-                    price=snapshot.price,
+                snapshots[code] = replace_market_snapshot(
+                    snapshot,
                     low_52w=cached.get("low_52w"),
                     high_52w=high_52w,
                     drawdown_from_high_pct=calc_drawdown_from_high_pct(
                         snapshot.price, high_52w
                     ),
-                    pe=snapshot.pe,
-                    pb=snapshot.pb,
-                    ps=snapshot.ps,
-                    dividend_yield_pct=snapshot.dividend_yield_pct,
-                    market_cap_yuan=snapshot.market_cap_yuan,
                 )
                 continue
             if snapshot.low_52w is None or snapshot.high_52w is None:
@@ -327,20 +328,12 @@ class AkshareDataProvider(MarketDataProvider):
                 snapshot = snapshots[code]
                 price = snapshot.price
                 high_52w = stats.get("high_52w")
-                snapshots[code] = MarketSnapshot(
-                    code=snapshot.code,
-                    name=snapshot.name,
-                    market=snapshot.market,
-                    industry=snapshot.industry,
+                snapshots[code] = replace_market_snapshot(
+                    snapshot,
                     price=price,
                     low_52w=stats.get("low_52w"),
                     high_52w=high_52w,
                     drawdown_from_high_pct=calc_drawdown_from_high_pct(price, high_52w),
-                    pe=snapshot.pe,
-                    pb=snapshot.pb,
-                    ps=snapshot.ps,
-                    dividend_yield_pct=snapshot.dividend_yield_pct,
-                    market_cap_yuan=snapshot.market_cap_yuan,
                 )
 
     def _fetch_52w_from_hist(self, code: str) -> dict[str, float | None]:
@@ -436,6 +429,9 @@ class AkshareDataProvider(MarketDataProvider):
             high_52w=valuation.get("high_52w"),
             drawdown_from_high_pct=valuation.get("drawdown_from_high_pct"),
             pe=valuation.get("pe"),
+            pe_ttm=valuation.get("pe_ttm"),
+            pe_static=valuation.get("pe_static"),
+            pe_dynamic=valuation.get("pe_dynamic"),
             pb=valuation.get("pb"),
             ps=valuation.get("ps"),
             market_cap_yuan=valuation.get("market_cap_yuan"),
@@ -510,6 +506,9 @@ class AkshareDataProvider(MarketDataProvider):
             "high_52w": None,
             "drawdown_from_high_pct": None,
             "pe": None,
+            "pe_ttm": None,
+            "pe_static": None,
+            "pe_dynamic": None,
             "pb": None,
             "ps": None,
             "market_cap_yuan": None,
@@ -528,12 +527,17 @@ class AkshareDataProvider(MarketDataProvider):
 
         latest = df.iloc[-1]
         price = _safe_float(latest.get("当日收盘价"))
+        pe_breakdown = parse_pe_from_value_em_row(latest)
+        pe_fields = merge_pe_fields(
+            pe_ttm=pe_breakdown["pe_ttm"],
+            pe_static=pe_breakdown["pe_static"],
+        )
         result = {
             "price": price,
             "low_52w": None,
             "high_52w": None,
             "drawdown_from_high_pct": None,
-            "pe": _safe_float(latest.get("PE(TTM)")),
+            **pe_fields,
             "pb": _safe_float(latest.get("市净率")),
             "ps": _safe_float(latest.get("市销率")),
             "market_cap_yuan": _parse_market_cap_yuan(
@@ -582,10 +586,15 @@ class AkshareDataProvider(MarketDataProvider):
             df = None
 
         pe = pb = ps = price = market_cap_yuan = None
+        pe_ttm = pe_static = pe_dynamic = None
         if df is not None and not df.empty:
             latest = df.iloc[-1]
             price = _safe_float(latest.get("当日收盘价"))
-            pe = _safe_float(latest.get("PE(TTM)"))
+            pe_breakdown = parse_pe_from_value_em_row(latest)
+            pe_ttm = pe_breakdown["pe_ttm"]
+            pe_static = pe_breakdown["pe_static"]
+            pe_fields = merge_pe_fields(pe_ttm=pe_ttm, pe_static=pe_static)
+            pe = pe_fields["pe"]
             pb = _safe_float(latest.get("市净率"))
             ps = _safe_float(latest.get("市销率"))
             market_cap_yuan = _parse_market_cap_yuan(
@@ -600,6 +609,9 @@ class AkshareDataProvider(MarketDataProvider):
             "high_52w": high_52w,
             "drawdown_from_high_pct": calc_drawdown_from_high_pct(price, high_52w),
             "pe": pe,
+            "pe_ttm": pe_ttm,
+            "pe_static": pe_static,
+            "pe_dynamic": pe_dynamic,
             "pb": pb,
             "ps": ps,
             "market_cap_yuan": market_cap_yuan,
@@ -686,9 +698,83 @@ class AkshareDataProvider(MarketDataProvider):
             return StockFinancials(code=code, market=Market.A, annual=[])
 
         financials = self._parse_financials(code, df)
+        rd_map = self._fetch_rd_expense_map(code, fast=fast)
+        if rd_map:
+            financials = self._apply_rd_expense_map(financials, rd_map)
         if self.cache is not None:
             self.cache.set("financial", code, serialize_financials(financials))
         return financials
+
+    def _fetch_rd_expense_map(self, code: str, *, fast: bool) -> dict[date, float]:
+        cache_key = f"rd_expense_{code}"
+        if self.cache is not None:
+            cached = self.cache.get("financial", cache_key)
+            if cached is not None:
+                return {
+                    date.fromisoformat(key): float(value)
+                    for key, value in cached.items()
+                    if value is not None
+                }
+
+        self._throttle()
+
+        def _fetch() -> pd.DataFrame:
+            return ak.stock_financial_benefit_ths(symbol=code, indicator="按报告期")
+
+        try:
+            if fast:
+                df = call_with_timeout(
+                    _fetch,
+                    timeout_sec=FAST_REQUEST_TIMEOUT_SEC,
+                    retries=FAST_REQUEST_RETRIES,
+                )
+            else:
+                df = call_with_retry(_fetch, retries=self.network_retries)
+        except Exception:
+            return {}
+
+        rd_map = self._parse_rd_expense_map(df)
+        if self.cache is not None:
+            payload = {
+                key.isoformat(): value for key, value in rd_map.items()
+            }
+            self.cache.set("financial", cache_key, payload)
+        return rd_map
+
+    @staticmethod
+    def _parse_rd_expense_map(df: pd.DataFrame | None) -> dict[date, float]:
+        if df is None or df.empty or "报告期" not in df.columns:
+            return {}
+        rd_map: dict[date, float] = {}
+        for _, row in df.iterrows():
+            report_date = parse_report_date(row.get("报告期"))
+            if report_date is None or report_date > date.today():
+                continue
+            rd_yuan = parse_money_to_yuan(row.get("研发费用"))
+            if rd_yuan is None:
+                continue
+            rd_map[report_date] = rd_yuan
+        return rd_map
+
+    @staticmethod
+    def _apply_rd_expense_map(
+        financials: StockFinancials,
+        rd_map: dict[date, float],
+    ) -> StockFinancials:
+        if not rd_map:
+            return financials
+        annual = [
+            replace(
+                item,
+                rd_expense_yuan=rd_map.get(item.report_date, item.rd_expense_yuan),
+            )
+            for item in financials.annual
+        ]
+        return StockFinancials(
+            code=financials.code,
+            market=financials.market,
+            annual=annual,
+        )
 
     @staticmethod
     def _parse_financials(code: str, df: pd.DataFrame) -> StockFinancials:
@@ -713,6 +799,7 @@ class AkshareDataProvider(MarketDataProvider):
                     operating_cashflow_yuan=parse_money_to_yuan(row.get("经营现金流量净额")),
                     debt_ratio_pct=parse_percent(row.get("资产负债率")),
                     roe_pct=parse_percent(row.get("净资产收益率")),
+                    eps_basic=parse_number(row.get("基本每股收益")),
                 )
             )
         annual.sort(key=lambda item: item.report_date)

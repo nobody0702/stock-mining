@@ -17,6 +17,9 @@ def test_parse_hk_indicator_metrics_from_em_row():
     )
     metrics = parse_hk_indicator_metrics(row)
     assert metrics["pe"] == pytest.approx(14.55)
+    assert metrics["pe_ttm"] == pytest.approx(14.55)
+    assert metrics["pe_static"] is None
+    assert metrics["pe_dynamic"] is None
     assert metrics["pb"] == pytest.approx(2.99)
     assert metrics["dividend_yield_pct"] == pytest.approx(1.26)
     assert metrics["market_cap_yuan"] == pytest.approx(3_827_301_258_673.0)

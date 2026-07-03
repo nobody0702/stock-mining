@@ -26,6 +26,9 @@ class MarketSnapshot:
     high_52w: float | None = None
     drawdown_from_high_pct: float | None = None
     pe: float | None = None
+    pe_ttm: float | None = None
+    pe_static: float | None = None
+    pe_dynamic: float | None = None
     pb: float | None = None
     ps: float | None = None
     dividend_yield_pct: float | None = None
@@ -51,6 +54,8 @@ class AnnualMetrics:
     operating_cashflow_yuan: float | None = None
     debt_ratio_pct: float | None = None
     roe_pct: float | None = None
+    eps_basic: float | None = None
+    rd_expense_yuan: float | None = None
     raw: dict[str, Any] = field(default_factory=dict)
 
 

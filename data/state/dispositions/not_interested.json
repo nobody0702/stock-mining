@@ -4174,5 +4174,13 @@
     "reference_price": null,
     "set_at": "2026-07-02T18:25:50.103949",
     "release_at": "2027-01-01T18:25:50.103949"
+  },
+  {
+    "stock_key": "a:600605",
+    "name": "汇通能源",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-03T13:48:15.903236",
+    "release_at": "2027-01-02T13:48:15.903236"
   }
 ]

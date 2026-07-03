@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from stock_mining.llm.dimensions import AnalysisConfig, AnalysisDimension
+from stock_mining.llm.quant_metric_labels import (
+    VALUATION_TIER_FIELD_LABELS,
+    format_metric_line,
+    group_metric_keys,
+)
 from stock_mining.models import CandidateHit
 
 
@@ -16,17 +21,12 @@ def build_stock_prompt(
         "请严格输出 Markdown 表格，第一列必须是「维度」，第二列是「内容」。",
         "",
         "打分规则（每个维度都必须遵守）：",
-        "- 「内容」列必须以「N分，」开头并接说明文字，N 为 1-5 的整数；说明用几句大白话写清楚，不要只写一句。",
-        "- 除「最可能出什么问题」外：分数越高表示该维度越正面、越好。",
-        "- 「最可能出什么问题」：分数越高表示风险越大、不确定性越高。",
+        "- 「内容」以「N分，」开头（N 为 1～5），接几句大白话说明，勿只写一句。",
+        "- 分数越高表示该维度越好。",
     ]
     if config.require_rubric_alignment:
-        lines.extend(
-            [
-                "- 每个维度的 N 分必须严格对照下方「统一打分标准」中该维度的 1～5 分定义；",
-                "  不同维度之间可以分数不同，但同一分数在不同分析里含义必须一致。",
-                "  例如：两个公司护城河都打 4 分，表示它们都符合「4 分」那条标准，而不是各自理解不同。",
-            ]
+        lines.append(
+            "- N 分须对照下方「统一打分标准」；不同公司打同分，须符合同一条标准（如两家护城河都打 4 分，含义一致）。"
         )
 
     lines.extend(["", "需要分析的维度如下："])
@@ -70,35 +70,37 @@ def build_stock_prompt(
 
 
 def _format_quant_summary(metrics: dict[str, Any]) -> list[str]:
-    lines = ["", "以下是程序已经算出的量化信息，供你参考："]
+    lines = [
+        "",
+        "以下是程序已经算出的量化信息，供你参考（每行末尾「—」后为指标含义）：",
+        "- 评「商业模式」时优先看「商业模式与单元经济」一节；评「成长性」时优先看「成长性与研发」一节；评「安全边际」时优先看「估值与安全边际」一节。",
+    ]
+
     tier_rows = metrics.get("valuation_tiers")
     if isinstance(tier_rows, list) and tier_rows:
         default_tier = metrics.get("valuation_default_tier", tier_rows[0].get("id"))
         lines.extend(
             [
                 "",
-                "估值档位说明：",
-                "- 程序已按多个经典假设分别计算 PE 法与简易 DCF 的安全边际（MOS）。",
+                "【估值档位】（多档假设下的 PE 法与简易 DCF 安全边际）",
                 "- MOS>0 表示相对该档假设有折扣；MOS<0 表示相对该档假设偏贵。",
-                "- 评「安全边际」时，请先根据本股的商业模式、护城河、成长性、行业属性，",
-                "  从下列档位中选出你认为最契合的一档（可说明为何不是其他档），",
-                f"  再以该档的 MOS 与 intrinsic_price_* 为主依据打分；默认参考档为 {default_tier}。",
+                "- 评「安全边际」时，请先根据商业模式、护城河、成长性、行业，",
+                "  从下列档位中选出最契合的一档（可说明为何不是其他档），",
+                f"  再以该档 MOS 与 intrinsic_price_* 为主依据打分；默认参考档为 {default_tier}。",
                 "",
             ]
         )
         for row in tier_rows:
             lines.extend(_format_valuation_tier_row(row))
 
-    general_metrics = {
-        key: value
-        for key, value in metrics.items()
-        if key != "valuation_tiers"
-    }
+    general_metrics = {key: value for key, value in metrics.items() if key != "valuation_tiers"}
     if general_metrics:
-        lines.append("")
-        lines.append("其他量化指标：")
-        for key, value in sorted(general_metrics.items()):
-            lines.append(f"- {key}: {value}")
+        for title, keys in group_metric_keys(general_metrics):
+            lines.append("")
+            lines.append(f"【{title}】")
+            for key in keys:
+                lines.append(format_metric_line(key, general_metrics[key]))
+
     return lines
 
 
@@ -110,20 +112,26 @@ def _format_valuation_tier_row(row: dict[str, Any]) -> list[str]:
     terminal_growth = row.get("terminal_growth")
     typical_for = row.get("typical_for", "")
     header = (
-        f"- [{tier_id}] {label}：合理PE={fair_pe}，折现率={discount_rate}，永续增长={terminal_growth}"
+        f"- [{tier_id}] {label}："
+        f"{VALUATION_TIER_FIELD_LABELS['fair_pe']}={fair_pe}，"
+        f"{VALUATION_TIER_FIELD_LABELS['discount_rate']}={discount_rate}，"
+        f"{VALUATION_TIER_FIELD_LABELS['terminal_growth']}={terminal_growth}"
     )
     if typical_for:
-        header += f" | 常见适用：{typical_for}"
+        header += f"  — 常见适用：{typical_for}"
     parts = [header]
-    for key, label_text in (
-        ("margin_of_safety_pe_pct", "PE安全边际%"),
-        ("margin_of_safety_dcf_pct", "DCF安全边际%"),
-        ("margin_of_safety_pct", "综合MOS%(保守取小)"),
-        ("intrinsic_price_pe", "合理股价(PE)"),
-        ("intrinsic_price_dcf", "合理股价(DCF)"),
+    for key in (
+        "margin_of_safety_pe_pct",
+        "margin_of_safety_dcf_pct",
+        "margin_of_safety_pct",
+        "intrinsic_price_pe",
+        "intrinsic_price_dcf",
+        "intrinsic_value_pe_yuan",
+        "intrinsic_value_dcf_yuan",
     ):
         if row.get(key) is not None:
-            parts.append(f"  · {label_text}={row[key]}")
+            field_label = VALUATION_TIER_FIELD_LABELS.get(key, key)
+            parts.append(f"  · {field_label}={row[key]}")
     return parts
 
 

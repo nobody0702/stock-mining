@@ -31,3 +31,5 @@ web_context:
     - "{name} {code} 财报 分析"
     - "{name} 管理层 治理 评价"
     - "{name} 争议 处罚 立案"
+    - "{name} 证监会 交易所 通报"
+    - "{name} 诉讼 仲裁 调查"

@@ -179,6 +179,27 @@ def test_extract_metrics_includes_market_cap_from_snapshot():
     assert metrics["market_cap_yuan"] == pytest.approx(9.46e9)
 
 
+def test_extract_metrics_includes_interim_when_newer_than_annual():
+    ctx = ScreeningContext(
+        stock=StockInfo("600000", "样本", Market.A),
+        market=MarketSnapshot("600000", "样本", market=Market.A, price=10.0, low_52w=10.0),
+        financials=StockFinancials(
+            "600000",
+            annual=[
+                AnnualMetrics(date(2025, 12, 31), net_profit_yuan=10.0, revenue_yuan=100.0),
+                AnnualMetrics(date(2026, 6, 30), net_profit_yuan=6.0, revenue_yuan=55.0),
+            ],
+        ),
+    )
+    score, parts = compute_score(ctx, ScoringConfig())
+    metrics = extract_metrics(ctx, score, parts)
+    assert metrics["latest_period_label"] == "2026半年报"
+    assert metrics["latest_revenue"] == pytest.approx(55.0)
+    assert metrics["latest_annual_revenue"] == pytest.approx(100.0)
+    assert metrics["has_newer_interim_than_annual"] is True
+    assert len(metrics["current_year_interim_reports"]) == 1
+
+
 def test_extract_metrics_infers_market_cap_from_ps_times_revenue():
     ctx = _ctx(profit=2e8, ps=10.0)
     score, parts = compute_score(ctx, ScoringConfig())

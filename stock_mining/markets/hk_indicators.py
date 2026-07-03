@@ -14,6 +14,9 @@ def parse_hk_indicator_metrics(row: Any) -> dict[str, float | None]:
     market_cap = parse_number(_coalesce(row, "总市值(港元)", "总市值"))
     return {
         "pe": pe,
+        "pe_ttm": pe,
+        "pe_static": None,
+        "pe_dynamic": None,
         "pb": pb,
         "ps": ps,
         "dividend_yield_pct": dividend,
