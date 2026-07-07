@@ -4182,5 +4182,269 @@
     "reference_price": null,
     "set_at": "2026-07-03T13:48:15.903236",
     "release_at": "2027-01-02T13:48:15.903236"
+  },
+  {
+    "stock_key": "a:300743",
+    "name": "天地数码",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:27:10.307594",
+    "release_at": "2027-01-05T20:27:10.307594"
+  },
+  {
+    "stock_key": "a:603855",
+    "name": "华荣股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:32:49.476552",
+    "release_at": "2027-01-05T20:32:49.476552"
+  },
+  {
+    "stock_key": "a:301004",
+    "name": "嘉益股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:33:24.471165",
+    "release_at": "2027-01-05T20:33:24.471165"
+  },
+  {
+    "stock_key": "a:300453",
+    "name": "三鑫医疗",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:35:17.024713",
+    "release_at": "2027-01-05T20:35:17.024713"
+  },
+  {
+    "stock_key": "a:603170",
+    "name": "宝立食品",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:35:53.776247",
+    "release_at": "2027-01-05T20:35:53.776247"
+  },
+  {
+    "stock_key": "a:603202",
+    "name": "天有为",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:36:28.156092",
+    "release_at": "2027-01-05T20:36:28.156092"
+  },
+  {
+    "stock_key": "a:000526",
+    "name": "学大教育",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:38:08.592750",
+    "release_at": "2027-01-05T20:38:08.592750"
+  },
+  {
+    "stock_key": "a:603699",
+    "name": "纽威股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:39:55.821680",
+    "release_at": "2027-01-05T20:39:55.821680"
+  },
+  {
+    "stock_key": "a:600132",
+    "name": "重庆啤酒",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:50:41.716719",
+    "release_at": "2027-01-05T20:50:41.716719"
+  },
+  {
+    "stock_key": "a:002130",
+    "name": "沃尔核材",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:52:00.298217",
+    "release_at": "2027-01-05T20:52:00.298217"
+  },
+  {
+    "stock_key": "a:003013",
+    "name": "地铁设计",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:52:41.923494",
+    "release_at": "2027-01-05T20:52:41.923494"
+  },
+  {
+    "stock_key": "a:002595",
+    "name": "豪迈科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:53:21.412526",
+    "release_at": "2027-01-05T20:53:21.412526"
+  },
+  {
+    "stock_key": "a:600988",
+    "name": "赤峰黄金",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:53:55.945023",
+    "release_at": "2027-01-05T20:53:55.945023"
+  },
+  {
+    "stock_key": "a:301606",
+    "name": "绿联科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:54:34.143930",
+    "release_at": "2027-01-05T20:54:34.143930"
+  },
+  {
+    "stock_key": "a:300693",
+    "name": "盛弘股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T20:56:30.061445",
+    "release_at": "2027-01-05T20:56:30.061445"
+  },
+  {
+    "stock_key": "a:605117",
+    "name": "德业股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T21:01:25.876767",
+    "release_at": "2027-01-05T21:01:25.876767"
+  },
+  {
+    "stock_key": "a:001221",
+    "name": "悍高集团",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-06T21:02:00.967085",
+    "release_at": "2027-01-05T21:02:00.967085"
+  },
+  {
+    "stock_key": "a:605016",
+    "name": "百龙创园",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:51:51.696009",
+    "release_at": "2027-01-06T13:51:51.696009"
+  },
+  {
+    "stock_key": "a:600563",
+    "name": "法拉电子",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:52:30.394775",
+    "release_at": "2027-01-06T13:52:30.394775"
+  },
+  {
+    "stock_key": "a:002947",
+    "name": "恒铭达",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:53:00.553001",
+    "release_at": "2027-01-06T13:53:00.553001"
+  },
+  {
+    "stock_key": "a:300378",
+    "name": "鼎捷数智",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:53:35.337153",
+    "release_at": "2027-01-06T13:53:35.337153"
+  },
+  {
+    "stock_key": "a:300033",
+    "name": "同花顺",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:55:01.934235",
+    "release_at": "2027-01-06T13:55:01.934235"
+  },
+  {
+    "stock_key": "a:001257",
+    "name": "盛龙股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:56:13.345378",
+    "release_at": "2027-01-06T13:56:13.345378"
+  },
+  {
+    "stock_key": "a:301513",
+    "name": "尚水智能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:56:35.168964",
+    "release_at": "2027-01-06T13:56:35.168964"
+  },
+  {
+    "stock_key": "a:300442",
+    "name": "润泽科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:59:09.327900",
+    "release_at": "2027-01-06T13:59:09.327900"
+  },
+  {
+    "stock_key": "a:300286",
+    "name": "安科瑞",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T13:59:56.619636",
+    "release_at": "2027-01-06T13:59:56.619636"
+  },
+  {
+    "stock_key": "a:300811",
+    "name": "铂科新材",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:05:08.898088",
+    "release_at": "2027-01-06T14:05:08.898088"
+  },
+  {
+    "stock_key": "a:301031",
+    "name": "中熔电气",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:10:20.125773",
+    "release_at": "2027-01-06T14:10:20.125773"
+  },
+  {
+    "stock_key": "a:688797",
+    "name": "臻宝科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:14:59.994803",
+    "release_at": "2027-01-06T14:14:59.994803"
+  },
+  {
+    "stock_key": "a:300502",
+    "name": "新易盛",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:17:34.215189",
+    "release_at": "2027-01-06T14:17:34.215189"
+  },
+  {
+    "stock_key": "a:301611",
+    "name": "珂玛科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:17:54.830106",
+    "release_at": "2027-01-06T14:17:54.830106"
+  },
+  {
+    "stock_key": "a:603435",
+    "name": "嘉德利",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:18:40.752999",
+    "release_at": "2027-01-06T14:18:40.752999"
+  },
+  {
+    "stock_key": "a:300201",
+    "name": "海伦哲",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-07T14:19:33.678518",
+    "release_at": "2027-01-06T14:19:33.678518"
   }
 ]

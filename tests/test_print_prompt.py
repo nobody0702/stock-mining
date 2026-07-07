@@ -197,3 +197,34 @@ def test_print_prompt_cli(monkeypatch, capsys):
     assert "688001" in captured.out
     assert "筛选:通过" in captured.out
     assert "商业模式" in captured.out or "护城河" in captured.out
+
+
+def test_print_prompt_cli_copy_flag(monkeypatch, capsys):
+    root = Path(__file__).resolve().parents[1]
+    provider = FakeProvider()
+    screener = _build_screener(provider)
+    copied: list[str] = []
+
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(
+        "stock_mining.pipeline.single_stock.load_live_screener",
+        lambda *_args, **_kwargs: screener,
+    )
+    monkeypatch.setattr(
+        "stock_mining.utils.copy_to_clipboard",
+        lambda text: copied.append(text) or (True, None),
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["print_prompt.py", "688001", "--copy"],
+    )
+
+    from scripts.print_prompt import main
+
+    exit_code = main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 0
+    assert len(copied) == 1
+    assert "688001" in copied[0]
+    assert "已复制 prompt 到剪贴板" in captured.err

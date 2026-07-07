@@ -75,6 +75,7 @@ def test_mining_jobs_all_expands():
         "mispriced_growth",
         "normal_value",
         "mispriced_growth_hk",
+        "quality_roe_margin",
     ]
 
 

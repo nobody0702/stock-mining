@@ -73,8 +73,10 @@ def build_live_stock_prompt(
             progress(message)
 
     if market not in screener.providers:
+        config_hint = "config/screen_hk.yaml" if market == Market.HK else "screen.yaml 的 markets"
         raise ValueError(
-            f"配置未启用市场 {market.value}，请在 screen.yaml 的 markets 中加入该市场"
+            f"配置未启用市场 {market.value}，请使用 --config {config_hint} "
+            f"（港股: python3 scripts/print_prompt.py 00700 --market h --meta）"
         )
 
     normalized = normalize_stock_code(code, market)

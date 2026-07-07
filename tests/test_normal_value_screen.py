@@ -110,3 +110,12 @@ def test_load_normal_value_config():
     cfg = load_pipeline_config(root / "config" / "screen_normal_value.yaml")
     assert "normal_valuation_stable" in {track.name for track in cfg.tracks}
     assert cfg.output.candidates_json == "normal_value_candidates.json"
+
+
+def test_load_quality_roe_margin_config():
+    root = Path(__file__).resolve().parents[1]
+    from stock_mining.config import load_pipeline_config
+
+    cfg = load_pipeline_config(root / "config" / "screen_quality_roe_margin.yaml")
+    assert "quality_roe_margin" in {track.name for track in cfg.tracks}
+    assert cfg.output.candidates_json == "quality_roe_margin_candidates.json"

@@ -14,6 +14,7 @@ from stock_mining.filters.financial import (
     ProfitWindowRelaxedFilter,
     RevenueGrowthWindowFilter,
     RevenueNotSevereDeclineFilter,
+    RoeConsecutiveMinFilter,
     RoeNotDecliningFilter,
     RoeWindowFilter,
 )
@@ -39,6 +40,7 @@ FILTER_TYPES: dict[str, type[Filter]] = {
     "margin_or_window": MarginOrWindowFilter,
     "operating_cashflow_window": OperatingCashflowWindowFilter,
     "roe_window": RoeWindowFilter,
+    "roe_consecutive_min": RoeConsecutiveMinFilter,
     "profit_not_deteriorating": ProfitNotDeterioratingFilter,
     "roe_not_declining": RoeNotDecliningFilter,
     "ocf_to_profit_min": OcfToProfitMinFilter,

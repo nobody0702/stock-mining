@@ -1,0 +1,55 @@
+# 连续高 ROE + 毛利率 — A 股（--strategy quality_roe_margin）
+# 最近 3 年每年 ROE > 10%，最近 2 年每年 ROE > 15%，最近 3 年毛利率 > 30%
+
+data_source: akshare
+markets: [a]
+
+universe:
+  exclude_st: true
+  exclude_bj: true
+  max_stocks: null
+
+common_filters:
+  - name: non_st
+    type: non_st
+
+tracks:
+  quality_roe_margin:
+    filters:
+      - name: roe_consecutive
+        type: roe_consecutive_min
+        low_years: 3
+        low_min_pct: 10
+        high_years: 2
+        high_min_pct: 15
+
+      - name: gross_margin
+        type: gross_margin_min
+        years: 3
+        min_pct: 30
+
+scoring:
+  weights:
+    cheap: 0.5
+    stability: 0.5
+
+output:
+  directory: data/results
+  top_n: null
+  candidates_json: quality_roe_margin_candidates.json
+  candidates_csv: quality_roe_margin_candidates.csv
+  filename: quality_roe_margin_screen.csv
+
+state:
+  db_path: data/state/user_state.sqlite3
+  dispositions_dir: data/state/dispositions
+  disposition_suppress_days: 183
+  too_expensive_drop_ratio: 0.10
+
+fetch:
+  use_cache: true
+  cache_dir: data/cache
+  cache_ttl_hours: 12
+  financial_workers: 4
+  snapshot_workers: 8
+  request_interval_sec: 0.25

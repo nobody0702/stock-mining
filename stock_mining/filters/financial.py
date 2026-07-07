@@ -182,6 +182,70 @@ class RoeWindowFilter(Filter):
         )
 
 
+class RoeConsecutiveMinFilter(Filter):
+    """Each of the last ``low_years`` annual reports must have ROE > low_min_pct;
+    each of the last ``high_years`` must have ROE > high_min_pct."""
+
+    def __init__(
+        self,
+        name: str = "roe_consecutive_min",
+        low_years: int = 3,
+        low_min_pct: float = 10.0,
+        high_years: int = 2,
+        high_min_pct: float = 15.0,
+        **_: object,
+    ) -> None:
+        self.name = name
+        self.low_years = low_years
+        self.low_min_pct = low_min_pct
+        self.high_years = high_years
+        self.high_min_pct = high_min_pct
+
+    @property
+    def requires_financials(self) -> bool:
+        return True
+
+    def evaluate(self, ctx: ScreeningContext) -> FilterResult:
+        financials = ctx.financials
+        if financials is None:
+            return FilterResult(False, "缺少财务数据")
+
+        window_years = max(self.low_years, self.high_years)
+        window = adaptive_annual_window(financials.annual, window_years)
+        if len(window) < self.low_years:
+            return FilterResult(False, f"年报不足 {self.low_years} 年")
+
+        low_window = window[-self.low_years :]
+        low_values: list[float] = []
+        for metrics in low_window:
+            if metrics.roe_pct is None:
+                return FilterResult(False, "缺少净资产收益率")
+            low_values.append(metrics.roe_pct)
+            if metrics.roe_pct <= self.low_min_pct:
+                return FilterResult(
+                    False,
+                    f"最近{self.low_years}年 ROE 未全部 > {self.low_min_pct}%: {low_values}",
+                )
+
+        high_window = window[-self.high_years :]
+        high_values: list[float] = []
+        for metrics in high_window:
+            if metrics.roe_pct is None:
+                return FilterResult(False, "缺少净资产收益率")
+            high_values.append(metrics.roe_pct)
+            if metrics.roe_pct <= self.high_min_pct:
+                return FilterResult(
+                    False,
+                    f"最近{self.high_years}年 ROE 未全部 > {self.high_min_pct}%: {high_values}",
+                )
+
+        return FilterResult(
+            True,
+            f"最近{self.low_years}年 ROE > {self.low_min_pct}%，"
+            f"最近{self.high_years}年 ROE > {self.high_min_pct}%",
+        )
+
+
 class GrossMarginFlexibleFilter(Filter):
     """At least min_years_meeting years with gross margin >= min_pct in the window.
 

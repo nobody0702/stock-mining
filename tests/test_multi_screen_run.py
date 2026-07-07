@@ -37,8 +37,8 @@ def test_market_scope_filters_hk_strategy_on_a_only():
     assert markets_for_scope(MarketScope.ALL) == [Market.A, Market.HK]
 
 
-def test_mining_jobs_all_lists_three():
-    assert len(mining_jobs_for("all")) == 3
+def test_mining_jobs_all_lists_four():
+    assert len(mining_jobs_for("all")) == 4
 
 
 def test_run_mining_uses_unified_for_multiple_a_strategies(monkeypatch, tmp_path):
@@ -119,5 +119,5 @@ def test_run_mining_all_uses_unified_for_a_and_single_for_hk(monkeypatch, tmp_pa
         max_stocks=1,
     )
 
-    assert unified_calls == [(Market.A, 2)]
+    assert unified_calls == [(Market.A, 3)]
     assert run_calls == [1]

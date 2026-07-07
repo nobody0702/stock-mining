@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from datetime import date, datetime
 from typing import TYPE_CHECKING
@@ -185,3 +188,42 @@ def load_project_env(env_path: str | Path, *, override: bool = False) -> bool:
         os.environ[key] = value
         loaded = True
     return loaded
+
+
+def copy_to_clipboard(text: str) -> tuple[bool, str | None]:
+    """Copy text to the system clipboard. Returns (ok, error_message)."""
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            subprocess.run(
+                ["pbcopy"],
+                input=text.encode("utf-8"),
+                check=True,
+            )
+            return True, None
+        if system == "Linux":
+            if shutil.which("xclip"):
+                subprocess.run(
+                    ["xclip", "-selection", "clipboard"],
+                    input=text.encode("utf-8"),
+                    check=True,
+                )
+                return True, None
+            if shutil.which("xsel"):
+                subprocess.run(
+                    ["xsel", "--clipboard", "--input"],
+                    input=text.encode("utf-8"),
+                    check=True,
+                )
+                return True, None
+            return False, "未找到 xclip 或 xsel，无法写入剪贴板"
+        if system == "Windows":
+            subprocess.run(
+                ["clip"],
+                input=text.encode("utf-16le"),
+                check=True,
+            )
+            return True, None
+        return False, f"当前系统 ({system}) 暂不支持自动复制"
+    except (OSError, subprocess.CalledProcessError) as exc:
+        return False, str(exc)

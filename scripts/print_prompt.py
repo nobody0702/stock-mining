@@ -8,6 +8,30 @@ import sys
 from pathlib import Path
 
 
+def _default_copy_to_clipboard(args: argparse.Namespace) -> bool:
+    if args.no_copy:
+        return False
+    if args.copy:
+        return True
+    if args.output is not None:
+        return False
+    if not sys.stdout.isatty():
+        return False
+    return sys.platform == "darwin"
+
+
+DEFAULT_SCREEN_CONFIG = "config/screen.yaml"
+HK_SCREEN_CONFIG = "config/screen_hk.yaml"
+
+
+def resolve_screen_config(market_arg: str, config_arg: str) -> str:
+    """Pick screen yaml: HK uses screen_hk.yaml when user kept the A-share default."""
+    market = market_arg.lower()
+    if market in {"h", "hk"} and config_arg.replace("\\", "/") == DEFAULT_SCREEN_CONFIG:
+        return HK_SCREEN_CONFIG
+    return config_arg
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="输入股票代码，实时拉数并输出 Cursor 分析提示词（无需打开 Web）",
@@ -22,8 +46,8 @@ def main() -> int:
     parser.add_argument(
         "-c",
         "--config",
-        default="config/screen.yaml",
-        help="筛选配置路径",
+        default=DEFAULT_SCREEN_CONFIG,
+        help="筛选配置路径（--market h 且未改此项时自动用 config/screen_hk.yaml）",
     )
     parser.add_argument(
         "--dimensions",
@@ -56,7 +80,18 @@ def main() -> int:
         action="store_true",
         help="在提示词前打印一行元信息（代码、是否过筛选、轨道）",
     )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        help="生成后将 prompt 写入系统剪贴板（macOS 交互终端下默认开启）",
+    )
+    parser.add_argument(
+        "--no-copy",
+        action="store_true",
+        help="不写入剪贴板（关闭 macOS 交互终端下的默认复制）",
+    )
     args = parser.parse_args()
+    args.config = resolve_screen_config(args.market, args.config)
 
     root = Path(__file__).resolve().parents[1]
     sys.path.insert(0, str(root))
@@ -69,6 +104,7 @@ def main() -> int:
         build_live_stock_prompt,
         load_live_screener,
     )
+    from stock_mining.utils import copy_to_clipboard
 
     config_path = Path(args.config)
     if not config_path.is_absolute():
@@ -86,6 +122,9 @@ def main() -> int:
 
         def _progress(message: str) -> None:
             print(message, file=sys.stderr, flush=True)
+
+        if args.market.lower() in {"h", "hk"} and config_path.name == "screen_hk.yaml":
+            _progress(f"使用港股配置: {config_path.relative_to(root)}")
 
         result = build_live_stock_prompt(
             screener,
@@ -124,6 +163,13 @@ def main() -> int:
         print(f"已写入: {out_path}", file=sys.stderr)
     else:
         print(text)
+
+    if _default_copy_to_clipboard(args):
+        ok, err = copy_to_clipboard(text)
+        if ok:
+            print("已复制 prompt 到剪贴板，可直接 ⌘V 粘贴", file=sys.stderr)
+        else:
+            print(f"复制到剪贴板失败: {err}", file=sys.stderr)
     return 0
 
 

@@ -8,6 +8,7 @@ from stock_mining.filters.financial import (
     MarginOrWindowFilter,
     OperatingCashflowWindowFilter,
     RevenueNotSevereDeclineFilter,
+    RoeConsecutiveMinFilter,
     RoeWindowFilter,
 )
 from stock_mining.filters.market import ValuationByProfitFilter
@@ -251,6 +252,60 @@ def test_roe_window_single_year_requires_high_only():
     )
     assert f.evaluate(ok).passed
     assert not f.evaluate(bad).passed
+
+
+def test_roe_consecutive_min_pass():
+    f = RoeConsecutiveMinFilter(
+        low_years=3, low_min_pct=10, high_years=2, high_min_pct=15
+    )
+    ctx = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), roe_pct=12),
+                AnnualMetrics(date(2023, 12, 31), roe_pct=16),
+                AnnualMetrics(date(2024, 12, 31), roe_pct=18),
+            ],
+        ),
+    )
+    assert f.evaluate(ctx).passed
+
+
+def test_roe_consecutive_min_fail_low_tier():
+    f = RoeConsecutiveMinFilter(
+        low_years=3, low_min_pct=10, high_years=2, high_min_pct=15
+    )
+    ctx = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), roe_pct=9),
+                AnnualMetrics(date(2023, 12, 31), roe_pct=16),
+                AnnualMetrics(date(2024, 12, 31), roe_pct=18),
+            ],
+        ),
+    )
+    assert not f.evaluate(ctx).passed
+
+
+def test_roe_consecutive_min_fail_high_tier():
+    f = RoeConsecutiveMinFilter(
+        low_years=3, low_min_pct=10, high_years=2, high_min_pct=15
+    )
+    ctx = ScreeningContext(
+        stock=StockInfo("000001", "测试"),
+        financials=StockFinancials(
+            "000001",
+            [
+                AnnualMetrics(date(2022, 12, 31), roe_pct=12),
+                AnnualMetrics(date(2023, 12, 31), roe_pct=14),
+                AnnualMetrics(date(2024, 12, 31), roe_pct=18),
+            ],
+        ),
+    )
+    assert not f.evaluate(ctx).passed
 
 
 def test_gross_margin_flexible_two_of_three():

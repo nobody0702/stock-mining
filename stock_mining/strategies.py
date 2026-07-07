@@ -37,6 +37,13 @@ MINING_STRATEGIES: dict[str, ScreenStrategy] = {
         candidates_json="hk_candidates.json",
         markets=(Market.HK,),
     ),
+    "quality_roe_margin": ScreenStrategy(
+        id="quality_roe_margin",
+        label="连续高ROE高毛利",
+        config_path="config/screen_quality_roe_margin.yaml",
+        candidates_json="quality_roe_margin_candidates.json",
+        markets=(Market.A,),
+    ),
 }
 
 REVIEW_STRATEGIES: dict[str, ScreenStrategy] = {

@@ -13,7 +13,8 @@ HELP_EPILOG = """
   mispriced_growth      被错杀的白马股（A 股，config/screen.yaml）
   normal_value          正常估值不下滑（A 股）
   mispriced_growth_hk   港股通·被错杀的白马股
-  all                   以上三个策略都跑，并合并写入 all_candidates.json
+  quality_roe_margin    连续高 ROE + 毛利率（A 股）
+  all                   以上全部策略都跑，并合并写入 all_candidates.json
   支持逗号组合，如 mispriced_growth,normal_value（同市场只拉一次数据）
 
 市场 (--market)
