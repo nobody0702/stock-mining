@@ -64,6 +64,11 @@ def _candidate_label(hit) -> str:
     return f"{hit.name} ({hit.market.value.upper()}:{hit.code})"
 
 
+def _hit_element_key(prefix: str, service: ReviewService, hit) -> str:
+    """Build a unique Streamlit widget key (same stock may appear in multiple tracks)."""
+    return f"{prefix}-{service.strategy_id}-{hit.stock_key}-{hit.track}"
+
+
 def _disposition_selector(service: ReviewService, hit) -> None:
     current = service.get_disposition_kind(hit.stock_key)
     st.caption("标记（三选一，可随时修改）")
@@ -74,7 +79,7 @@ def _disposition_selector(service: ReviewService, hit) -> None:
             btn_type = "primary" if current == kind else "secondary"
             if st.button(
                 label,
-                key=f"disp-{kind}-{service.strategy_id}-{hit.stock_key}",
+                key=_hit_element_key(f"disp-{kind}", service, hit),
                 type=btn_type,
                 use_container_width=True,
             ):
@@ -199,14 +204,14 @@ def _page_candidates(service: ReviewService) -> None:
             prompt_text = service.build_prompt(hit)
             _copy_prompt_button(
                 prompt_text,
-                element_key=f"prompt-{service.strategy_id}-{hit.stock_key}",
+                element_key=_hit_element_key("prompt", service, hit),
             )
             with st.expander("查看 Prompt", expanded=False):
                 st.text_area(
                     "Prompt 文本",
                     prompt_text,
                     height=180,
-                    key=f"prompt-view-{service.strategy_id}-{hit.stock_key}",
+                    key=_hit_element_key("prompt-view", service, hit),
                     label_visibility="collapsed",
                 )
             _disposition_selector(service, hit)
