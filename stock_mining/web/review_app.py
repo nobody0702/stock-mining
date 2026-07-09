@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +9,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
@@ -28,35 +26,17 @@ DISPOSITION_KINDS = [
 ]
 
 
-def _copy_prompt_button(text: str, *, element_key: str) -> None:
-    safe_id = element_key.replace(":", "_").replace("-", "_")
-    payload = json.dumps(text, ensure_ascii=False)
-    components.html(
-        f"""
-        <button id="copy_{safe_id}" type="button" style="
-            width: 100%;
-            padding: 0.45rem 0.75rem;
-            border: 1px solid rgba(49, 51, 63, 0.2);
-            border-radius: 0.5rem;
-            background: rgb(255, 255, 255);
-            cursor: pointer;
-            font-size: 0.875rem;
-        ">复制 Prompt</button>
-        <script>
-        (function() {{
-            const btn = document.getElementById("copy_{safe_id}");
-            btn.addEventListener("click", function() {{
-                navigator.clipboard.writeText({payload}).then(function() {{
-                    btn.innerText = "已复制 ✓";
-                    setTimeout(function() {{ btn.innerText = "复制 Prompt"; }}, 2000);
-                }}).catch(function() {{
-                    btn.innerText = "复制失败，请用下方文本";
-                }});
-            }});
-        }})();
-        </script>
-        """,
-        height=52,
+def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit) -> None:
+    """Show prompt with Streamlit-native copy/download (works over remote HTTP)."""
+    st.caption("复制 Prompt 到 Cursor")
+    st.code(prompt_text, language=None, wrap_lines=True)
+    st.download_button(
+        "下载 Prompt (.txt)",
+        data=prompt_text.encode("utf-8"),
+        file_name=f"{hit.stock_key.replace(':', '_')}_prompt.txt",
+        mime="text/plain",
+        key=_hit_element_key("prompt-dl", service, hit),
+        use_container_width=True,
     )
 
 
@@ -202,18 +182,7 @@ def _page_candidates(service: ReviewService) -> None:
                 st.table(cached)
         with header_cols[1]:
             prompt_text = service.build_prompt(hit)
-            _copy_prompt_button(
-                prompt_text,
-                element_key=_hit_element_key("prompt", service, hit),
-            )
-            with st.expander("查看 Prompt", expanded=False):
-                st.text_area(
-                    "Prompt 文本",
-                    prompt_text,
-                    height=180,
-                    key=_hit_element_key("prompt-view", service, hit),
-                    label_visibility="collapsed",
-                )
+            _prompt_copy_ui(prompt_text, service=service, hit=hit)
             _disposition_selector(service, hit)
 
 
