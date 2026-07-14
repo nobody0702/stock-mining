@@ -8,11 +8,11 @@ from pathlib import Path
 
 from tqdm import tqdm
 
-from stock_mining.config import PipelineConfig, TrackConfig, load_pipeline_config, resolve_project_path
+from stock_mining.config import PipelineConfig, load_pipeline_config, resolve_project_path
 from stock_mining.data.base import MarketDataProvider
 from stock_mining.filters.base import Filter
 from stock_mining.filters.registry import build_filters
-from stock_mining.markets.base import Market, normalize_stock_code
+from stock_mining.markets.base import Market
 from stock_mining.markets.stock_key import parse_stock_input
 from stock_mining.markets.providers import build_market_providers
 from stock_mining.markets.snapshot_utils import snapshot_needs_price_enrichment
@@ -24,6 +24,12 @@ from stock_mining.pipeline.funnel import (
     partition_filters,
     passes_filters,
     passes_without_financials,
+)
+from stock_mining.pipeline.prefilter import (
+    is_price_only_filter,
+    needs_52w_fields,
+    needs_valuation_fields,
+    track_soft_passes_market,
 )
 from stock_mining.scoring.engine import compute_score, extract_metrics
 from stock_mining.state.store import UserStateStore
@@ -49,6 +55,50 @@ class _UnifiedFinancialItem:
     screener_indices: list[int]
 
 
+def _lookback_years_for_screeners(screeners: list[DailyScreener]) -> int:
+    lookback_years = 3
+    for screener in screeners:
+        for spec in screener.config.common_filters:
+            if spec.get("type") == "non_declining_industry":
+                lookback_years = max(
+                    lookback_years,
+                    int(spec.get("lookback_years", 3)),
+                )
+    return lookback_years
+
+
+def _fetch_price_snapshots(
+    provider: MarketDataProvider,
+    codes: set[str],
+    *,
+    include_52w: bool,
+) -> dict[str, MarketSnapshot]:
+    fetch_price = getattr(provider, "fetch_price_snapshots", None)
+    if callable(fetch_price):
+        return fetch_price(codes, include_52w=include_52w)
+    return provider.fetch_market_snapshots(codes)
+
+
+def _enrich_snapshots(
+    provider: MarketDataProvider,
+    snapshots: dict[str, MarketSnapshot],
+) -> dict[str, MarketSnapshot]:
+    enrich = getattr(provider, "enrich_snapshots", None)
+    if callable(enrich):
+        return enrich(snapshots)
+    return snapshots
+
+
+def _fetch_financials_cached(
+    provider: MarketDataProvider,
+    codes: list[str],
+) -> dict:
+    fetch_cached = getattr(provider, "fetch_financials_cached", None)
+    if callable(fetch_cached):
+        return fetch_cached(codes)
+    return {}
+
+
 def run_unified_screeners_for_market(
     market: Market,
     screeners: list[DailyScreener],
@@ -64,31 +114,50 @@ def run_unified_screeners_for_market(
     if universe is None:
         universe = primary.build_universe(market)
 
-    lookback_years = 3
-    for screener in screeners:
-        for spec in screener.config.common_filters:
-            if spec.get("type") == "non_declining_industry":
-                lookback_years = max(
-                    lookback_years,
-                    int(spec.get("lookback_years", 3)),
-                )
-
+    lookback_years = _lookback_years_for_screeners(screeners)
     needs_industry_returns = any(s._needs_industry_returns for s in screeners)
     industry_returns = (
         provider.fetch_industry_returns(lookback_years) if needs_industry_returns else {}
     )
 
+    include_52w = any(s._needs_52w for s in screeners)
     universe_codes = {stock.code for stock in universe}
-    bulk_snapshots = provider.fetch_market_snapshots(universe_codes)
+    bulk_snapshots = _fetch_price_snapshots(
+        provider,
+        universe_codes,
+        include_52w=include_52w,
+    )
+
+    # Layer 1: price-only common filters across all screeners (union of survivors).
+    price_survivors: dict[str, tuple[StockInfo, MarketSnapshot]] = {}
+    for stock in tqdm(universe, desc=f"price-filter-{market.value}"):
+        snapshot = primary._resolve_snapshot(provider, stock, bulk_snapshots)
+        if snapshot is None:
+            continue
+        any_alive = False
+        for screener in screeners:
+            ctx = screener._build_context(stock, snapshot, industry_returns)
+            if screener._passes_price_common(ctx):
+                any_alive = True
+                break
+        if any_alive:
+            price_survivors[stock.code] = (stock, snapshot)
+
+    # Layer 2: expensive valuation enrichment only for price survivors.
+    if any(s._needs_valuation_enrichment for s in screeners) and price_survivors:
+        to_enrich = {code: snap for code, (_stock, snap) in price_survivors.items()}
+        enriched = _enrich_snapshots(provider, to_enrich)
+        for code, snap in enriched.items():
+            stock, _ = price_survivors[code]
+            price_survivors[code] = (stock, snap)
 
     hits_per_screener: list[list[CandidateHit]] = [[] for _ in screeners]
     financial_queue: dict[str, _UnifiedFinancialItem] = {}
 
-    for stock in tqdm(universe, desc=f"market-filter-{market.value}"):
-        snapshot = primary._resolve_snapshot(provider, stock, bulk_snapshots)
-        if snapshot is None:
-            continue
-
+    for code, (stock, snapshot) in tqdm(
+        price_survivors.items(),
+        desc=f"market-filter-{market.value}",
+    ):
         working_snapshot = snapshot
         if any(s._needs_industry_field for s in screeners) and working_snapshot.industry is None:
             working_snapshot = provider.enrich_snapshot_industry(working_snapshot)
@@ -121,8 +190,10 @@ def run_unified_screeners_for_market(
     workers = max(1, max(s.config.fetch.financial_workers for s in screeners))
     label = f"financial-{market.value}"
 
-    def _evaluate_unified(item: _UnifiedFinancialItem) -> list[tuple[int, CandidateHit]]:
-        financials = provider.fetch_financials(item.stock.code)
+    def _evaluate_unified(
+        item: _UnifiedFinancialItem,
+        financials,
+    ) -> list[tuple[int, CandidateHit]]:
         matched: list[tuple[int, CandidateHit]] = []
         for idx in item.screener_indices:
             screener = screeners[idx]
@@ -143,14 +214,25 @@ def run_unified_screeners_for_market(
         return matched
 
     if financial_queue:
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {
-                executor.submit(_evaluate_unified, item): item
-                for item in financial_queue.values()
-            }
-            for future in tqdm(as_completed(futures), total=len(futures), desc=label):
-                for idx, hit in future.result():
-                    hits_per_screener[idx].append(hit)
+        cached = _fetch_financials_cached(provider, list(financial_queue.keys()))
+        pending = [item for code, item in financial_queue.items() if code not in cached]
+        for code, item in financial_queue.items():
+            if code not in cached:
+                continue
+            for idx, hit in _evaluate_unified(item, cached[code]):
+                hits_per_screener[idx].append(hit)
+
+        def _fetch_and_evaluate(item: _UnifiedFinancialItem) -> list[tuple[int, CandidateHit]]:
+            return _evaluate_unified(item, provider.fetch_financials(item.stock.code))
+
+        if pending:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {
+                    executor.submit(_fetch_and_evaluate, item): item for item in pending
+                }
+                for future in tqdm(as_completed(futures), total=len(futures), desc=label):
+                    for idx, hit in future.result():
+                        hits_per_screener[idx].append(hit)
 
     for screener, hits in zip(screeners, hits_per_screener):
         hits.sort(key=lambda item: item.score, reverse=True)
@@ -191,6 +273,7 @@ class DailyScreener:
         self._common_market, self._common_industry, self._common_financial = partition_filters(
             self.common_filters
         )
+        self._common_price = [f for f in self._common_market if is_price_only_filter(f)]
         self._track_partitions = {
             track.name: partition_filters(track.filters) for track in self.tracks
         }
@@ -198,6 +281,8 @@ class DailyScreener:
             filter_ for track in self.tracks for filter_ in track.filters
         ]
         self._needs_industry_field = needs_industry_name(all_filters)
+        self._needs_52w = needs_52w_fields(all_filters)
+        self._needs_valuation_enrichment = needs_valuation_fields(all_filters)
 
     @classmethod
     def from_yaml(
@@ -310,6 +395,11 @@ class DailyScreener:
             return fetched if snapshot is None else snapshot
         return snapshot
 
+    def _passes_price_common(self, ctx: ScreeningContext) -> bool:
+        if not self._common_price:
+            return True
+        return passes_filters(ctx, self._common_price)
+
     def _track_passes_without_financials(
         self,
         ctx: ScreeningContext,
@@ -328,8 +418,11 @@ class DailyScreener:
         for track in self.tracks:
             if not needs_financials(track.filters):
                 continue
-            if self._track_passes_without_financials(ctx, track):
-                return True
+            if not self._track_passes_without_financials(ctx, track):
+                continue
+            if not track_soft_passes_market(ctx, track.filters):
+                continue
+            return True
         return False
 
     def _match_track(self, ctx: ScreeningContext) -> str | None:
@@ -400,8 +493,10 @@ class DailyScreener:
         provider: MarketDataProvider,
         candidate: _FinancialCandidate,
         industry_returns: dict[str, float],
+        financials=None,
     ) -> CandidateHit | None:
-        financials = provider.fetch_financials(candidate.stock.code)
+        if financials is None:
+            financials = provider.fetch_financials(candidate.stock.code)
         ctx = self._build_context(
             candidate.stock,
             candidate.snapshot,
@@ -412,6 +507,57 @@ class DailyScreener:
         if matched_track is None:
             return None
         return self._candidate_hit(ctx, matched_track, candidate.stock.market)
+
+    def _process_financial_queue(
+        self,
+        provider: MarketDataProvider,
+        financial_queue: list[_FinancialCandidate],
+        industry_returns: dict[str, float],
+    ) -> list[CandidateHit]:
+        if not financial_queue:
+            return []
+
+        hits: list[CandidateHit] = []
+        workers = max(1, self.config.fetch.financial_workers)
+        label = f"financial-{provider.market.value}"
+
+        cached = _fetch_financials_cached(
+            provider,
+            [candidate.stock.code for candidate in financial_queue],
+        )
+        pending: list[_FinancialCandidate] = []
+        for candidate in financial_queue:
+            financials = cached.get(candidate.stock.code)
+            if financials is None:
+                pending.append(candidate)
+                continue
+            result = self._evaluate_financial_candidate(
+                provider,
+                candidate,
+                industry_returns,
+                financials=financials,
+            )
+            if result is not None:
+                hits.append(result)
+
+        if not pending:
+            return hits
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    self._evaluate_financial_candidate,
+                    provider,
+                    candidate,
+                    industry_returns,
+                ): candidate
+                for candidate in pending
+            }
+            for future in tqdm(as_completed(futures), total=len(futures), desc=label):
+                result = future.result()
+                if result is not None:
+                    hits.append(result)
+        return hits
 
     def run(self) -> list[CandidateHit]:
         all_hits: list[CandidateHit] = []
@@ -431,32 +577,39 @@ class DailyScreener:
             )
 
             universe_codes = {stock.code for stock in universe}
-            bulk_snapshots = provider.fetch_market_snapshots(universe_codes)
+            bulk_snapshots = _fetch_price_snapshots(
+                provider,
+                universe_codes,
+                include_52w=self._needs_52w,
+            )
+
+            # Layer 1 — hard price constraints (ST / 52w / drawdown).
+            price_universe: list[StockInfo] = []
+            price_snapshots: dict[str, MarketSnapshot] = {}
+            for stock in tqdm(universe, desc=f"price-filter-{market.value}"):
+                snapshot = self._resolve_snapshot(provider, stock, bulk_snapshots)
+                if snapshot is None:
+                    continue
+                ctx = self._build_context(stock, snapshot, industry_returns)
+                if not self._passes_price_common(ctx):
+                    continue
+                price_universe.append(stock)
+                price_snapshots[stock.code] = snapshot
+
+            # Layer 2 — enrich PE/PB/PS/div only for price survivors.
+            if self._needs_valuation_enrichment and price_snapshots:
+                price_snapshots = _enrich_snapshots(provider, price_snapshots)
+
             immediate_hits, financial_queue = self._screen_market_stage(
                 provider,
-                universe,
-                bulk_snapshots,
+                price_universe,
+                price_snapshots,
                 industry_returns,
             )
             all_hits.extend(immediate_hits)
-
-            workers = max(1, self.config.fetch.financial_workers)
-            label = f"financial-{market.value}"
-
-            with ThreadPoolExecutor(max_workers=workers) as executor:
-                futures = {
-                    executor.submit(
-                        self._evaluate_financial_candidate,
-                        provider,
-                        candidate,
-                        industry_returns,
-                    ): candidate
-                    for candidate in financial_queue
-                }
-                for future in tqdm(as_completed(futures), total=len(futures), desc=label):
-                    result = future.result()
-                    if result is not None:
-                        all_hits.append(result)
+            all_hits.extend(
+                self._process_financial_queue(provider, financial_queue, industry_returns)
+            )
 
         all_hits.sort(key=lambda item: item.score, reverse=True)
         top_n = self.config.output.top_n

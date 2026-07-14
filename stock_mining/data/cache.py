@@ -56,6 +56,27 @@ class SqliteCache:
             return None
         return json.loads(row[0])
 
+    def get_many(self, namespace: str, keys: list[str] | set[str]) -> dict[str, Any]:
+        """Batch-load non-expired cache entries. Missing/expired keys are omitted."""
+        key_list = list(keys)
+        if not key_list:
+            return {}
+        namespace = self._ns(namespace)
+        placeholders = ",".join("?" for _ in key_list)
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                f"SELECT key, payload, updated_at FROM kv_cache "
+                f"WHERE namespace=? AND key IN ({placeholders})",
+                (namespace, *key_list),
+            ).fetchall()
+        now = datetime.now()
+        result: dict[str, Any] = {}
+        for key, payload, updated_at in rows:
+            if now - datetime.fromisoformat(updated_at) > self.ttl:
+                continue
+            result[str(key)] = json.loads(payload)
+        return result
+
     def get_allow_stale(self, namespace: str, key: str) -> Any | None:
         namespace = self._ns(namespace)
         with sqlite3.connect(self.db_path) as conn:

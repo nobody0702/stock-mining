@@ -122,12 +122,19 @@ class AkshareDataProvider(MarketDataProvider):
             raise last_error
         return {}
 
-    def fetch_market_snapshots(
+    def fetch_price_snapshots(
         self,
         codes: set[str] | None = None,
+        *,
+        include_52w: bool = True,
     ) -> dict[str, MarketSnapshot]:
-        """Bulk spot + parallel 52-week stats for the A-share universe."""
-        if self._bulk_snapshots is not None and codes is None:
+        """Bulk spot (+ optional 52w). Skips hist API when include_52w=False."""
+        cache_ok = (
+            include_52w
+            and self._bulk_snapshots is not None
+            and codes is None
+        )
+        if cache_ok:
             return self._bulk_snapshots
 
         dividend_map = self.fetch_dividend_map()
@@ -150,11 +157,47 @@ class AkshareDataProvider(MarketDataProvider):
                 dividend_yield_pct=dividend_map.get(code),
             )
 
-        self._enrich_52w_parallel(snapshots)
+        if include_52w:
+            self._enrich_52w_parallel(snapshots)
+        else:
+            self._apply_cached_52w_only(snapshots)
         self._merge_cached_snapshot_fields(snapshots)
-        if codes is None:
+        if include_52w and codes is None:
             self._bulk_snapshots = snapshots
         return snapshots
+
+    def fetch_market_snapshots(
+        self,
+        codes: set[str] | None = None,
+    ) -> dict[str, MarketSnapshot]:
+        """Bulk spot + parallel 52-week stats for the A-share universe."""
+        return self.fetch_price_snapshots(codes, include_52w=True)
+
+    def fetch_financials_cached(
+        self,
+        codes: list[str] | set[str],
+    ) -> dict[str, StockFinancials]:
+        if self.cache is None:
+            return {}
+        normalized = {normalize_code(c) for c in codes}
+        raw = self.cache.get_many("financial", normalized)
+        return {code: deserialize_financials(payload) for code, payload in raw.items()}
+
+    def _apply_cached_52w_only(self, snapshots: dict[str, MarketSnapshot]) -> None:
+        """Fill 52w from cache when present; never hit hist API."""
+        for code, snapshot in list(snapshots.items()):
+            cached = self._load_cached_52w(code)
+            if cached is None:
+                continue
+            high_52w = cached.get("high_52w")
+            snapshots[code] = replace_market_snapshot(
+                snapshot,
+                low_52w=cached.get("low_52w"),
+                high_52w=high_52w,
+                drawdown_from_high_pct=calc_drawdown_from_high_pct(
+                    snapshot.price, high_52w
+                ),
+            )
 
     def _merge_cached_snapshot_fields(self, snapshots: dict[str, MarketSnapshot]) -> None:
         payloads = self._ensure_snapshot_payloads()

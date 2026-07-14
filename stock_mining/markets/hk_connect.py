@@ -152,18 +152,42 @@ class AkshareHkConnectProvider(MarketDataProvider):
     def fetch_dividend_map(self) -> dict[str, float]:
         return {}
 
+    def fetch_price_snapshots(
+        self,
+        codes: set[str] | None = None,
+        *,
+        include_52w: bool = True,
+    ) -> dict[str, MarketSnapshot]:
+        """Sina bulk price/52w only — no per-stock indicator API."""
+        del include_52w  # sina quotes already include 52w bands
+        stocks = self.list_stocks()
+        if codes is not None:
+            stocks = [stock for stock in stocks if stock.code in codes]
+
+        quotes = self._ensure_sina_spot_quotes()
+        snapshots: dict[str, MarketSnapshot] = {}
+        for stock in stocks:
+            quote = quotes.get(stock.code)
+            price = quote.price if quote is not None else None
+            low_52w = quote.low_52w if quote is not None else None
+            high_52w = quote.high_52w if quote is not None else None
+            snapshots[stock.code] = MarketSnapshot(
+                code=stock.code,
+                name=stock.name,
+                market=Market.HK,
+                price=price,
+                low_52w=low_52w,
+                high_52w=high_52w,
+                drawdown_from_high_pct=calc_drawdown_from_high_pct(price, high_52w),
+            )
+        return snapshots
+
     def fetch_market_snapshots(
         self,
         codes: set[str] | None = None,
     ) -> dict[str, MarketSnapshot]:
-        stocks = self.list_stocks()
-        if codes is not None:
-            stocks = [stock for stock in stocks if stock.code in codes]
-        stubs = {
-            stock.code: MarketSnapshot(code=stock.code, name=stock.name, market=Market.HK)
-            for stock in stocks
-        }
-        return self.enrich_snapshots(stubs)
+        # Backward compatible full enrich; screener prefers layered price→enrich.
+        return self.enrich_snapshots(self.fetch_price_snapshots(codes))
 
     def enrich_snapshots(
         self,
@@ -176,12 +200,37 @@ class AkshareHkConnectProvider(MarketDataProvider):
         enriched: dict[str, MarketSnapshot] = {}
 
         def _enrich_one(code: str, stub: MarketSnapshot) -> MarketSnapshot:
-            return self.fetch_stock_snapshot(
+            # Reuse warm snapshot cache / indicator cache; preserve known price fields.
+            full = self.fetch_stock_snapshot(
                 code,
                 stub.name,
                 include_dividend=True,
                 fast=False,
             )
+            if stub.price is not None and full.price is None:
+                return MarketSnapshot(
+                    code=full.code,
+                    name=full.name or stub.name,
+                    market=Market.HK,
+                    industry=full.industry,
+                    price=stub.price,
+                    low_52w=stub.low_52w if stub.low_52w is not None else full.low_52w,
+                    high_52w=stub.high_52w if stub.high_52w is not None else full.high_52w,
+                    drawdown_from_high_pct=(
+                        stub.drawdown_from_high_pct
+                        if stub.drawdown_from_high_pct is not None
+                        else full.drawdown_from_high_pct
+                    ),
+                    pe=full.pe,
+                    pe_ttm=full.pe_ttm,
+                    pe_static=full.pe_static,
+                    pe_dynamic=full.pe_dynamic,
+                    pb=full.pb,
+                    ps=full.ps,
+                    dividend_yield_pct=full.dividend_yield_pct,
+                    market_cap_yuan=full.market_cap_yuan,
+                )
+            return full
 
         if workers <= 1:
             for code, stub in snapshots.items():
@@ -197,6 +246,15 @@ class AkshareHkConnectProvider(MarketDataProvider):
                 code = futures[future]
                 enriched[code] = future.result()
         return enriched
+
+    def fetch_financials_cached(
+        self,
+        codes: list[str] | set[str],
+    ) -> dict[str, StockFinancials]:
+        if self.cache is None:
+            return {}
+        raw = self.cache.get_many("financial", {normalize_stock_code(c, Market.HK) for c in codes})
+        return {code: deserialize_financials(payload) for code, payload in raw.items()}
 
     def fetch_stock_snapshot(
         self,

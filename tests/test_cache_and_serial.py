@@ -28,6 +28,17 @@ def test_cache_namespace_prefix_isolated(tmp_path):
     assert b.get("market", "k") == 2
 
 
+def test_cache_get_many_skips_missing_and_expired(tmp_path):
+    cache = SqliteCache(tmp_path, ttl_hours=1)
+    cache.set("financial", "00700", {"code": "00700"})
+    cache.set("financial", "00001", {"code": "00001"})
+    got = cache.get_many("financial", ["00700", "00999", "00001"])
+    assert set(got) == {"00700", "00001"}
+
+    expired = SqliteCache(tmp_path, ttl_hours=0)
+    assert expired.get_many("financial", ["00700"]) == {}
+
+
 def test_financials_serialize_deserialize_roundtrip():
     original = StockFinancials(
         "688001",
