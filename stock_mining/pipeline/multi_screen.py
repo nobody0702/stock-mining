@@ -286,10 +286,13 @@ def run_mining(
 
 
 def _write_merged_all_candidates(root: Path, results: list[ScreenRunResult]) -> Path:
+    from stock_mining.pipeline.candidate_index import dedupe_candidates_by_stock_key
+
     merged_hits: list[CandidateHit] = []
     for result in results:
         merged_hits.extend(result.hits)
-    merged_hits.sort(key=lambda item: item.score, reverse=True)
+    # Same stock may hit multiple strategies → one card per stock_key for review.
+    merged_hits = dedupe_candidates_by_stock_key(merged_hits)
 
     output_dir = root / "data" / "results"
     output_dir.mkdir(parents=True, exist_ok=True)

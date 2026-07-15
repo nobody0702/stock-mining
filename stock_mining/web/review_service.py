@@ -78,17 +78,21 @@ class ReviewService:
         return self.results_dir / self.strategy.candidates_json
 
     def load_candidates_payload(self) -> CandidatesPayload | None:
+        from stock_mining.pipeline.candidate_index import dedupe_candidates_by_stock_key
+
         json_path = self.candidates_json_path()
         if not json_path.exists():
             return None
         payload = json.loads(json_path.read_text(encoding="utf-8"))
         candidates = [CandidateHit.from_dict(item) for item in payload.get("candidates", [])]
+        # Defensive: old all_candidates.json may contain per-strategy duplicates.
+        candidates = dedupe_candidates_by_stock_key(candidates)
         mtime = datetime.fromtimestamp(json_path.stat().st_mtime)
         return CandidatesPayload(
             strategy_id=str(payload.get("strategy", self.strategy.id)),
             json_path=json_path,
             candidates=candidates,
-            count=int(payload.get("count", len(candidates))),
+            count=len(candidates),
             top_n=payload.get("top_n"),
             run_at=payload.get("run_at") or payload.get("generated_at"),
             source=payload.get("source"),

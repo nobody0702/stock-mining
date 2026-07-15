@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -10,7 +9,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
@@ -28,118 +26,37 @@ DISPOSITION_KINDS = [
 ]
 
 
-def _hit_element_key(prefix: str, service: ReviewService, hit) -> str:
-    """Build a unique Streamlit widget key (same stock may appear in multiple tracks)."""
-    return f"{prefix}-{service.strategy_id}-{hit.stock_key}-{hit.track}"
+def _hit_element_key(prefix: str, service: ReviewService, hit, *, idx: int = 0) -> str:
+    """Unique Streamlit widget key; include idx to avoid collisions if duplicates slip through."""
+    return f"{prefix}-{service.strategy_id}-{hit.stock_key}-{hit.track}-{idx}"
 
 
-def _copy_prompt_button(text: str, *, element_key: str) -> None:
-    """One-click copy via execCommand (works on remote HTTP; clipboard API does not)."""
-    safe_id = (
-        element_key.replace(":", "_")
-        .replace("-", "_")
-        .replace(".", "_")
-        .replace("/", "_")
-    )
-    payload = json.dumps(text, ensure_ascii=False)
-    components.html(
-        f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8">
-<style>
-  html, body {{
-    margin: 0; padding: 0; width: 100%; overflow: hidden;
-    font-family: "Source Sans Pro", sans-serif;
-  }}
-  #copy_{safe_id} {{
-    width: 100%; box-sizing: border-box;
-    padding: 0.45rem 0.75rem;
-    border: 1px solid rgba(49, 51, 63, 0.2);
-    border-radius: 0.5rem;
-    background: rgb(255, 255, 255);
-    cursor: pointer;
-    font-size: 0.875rem;
-  }}
-  #copy_{safe_id}:hover {{ border-color: rgba(49, 51, 63, 0.4); }}
-</style></head><body>
-<button id="copy_{safe_id}" type="button">复制 Prompt</button>
-<script>
-(function() {{
-  const btn = document.getElementById("copy_{safe_id}");
-  const text = {payload};
-  function copyViaExecCommand(value) {{
-    const ta = document.createElement("textarea");
-    ta.value = value;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    ta.style.top = "0";
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    ta.setSelectionRange(0, value.length);
-    let ok = false;
-    try {{ ok = document.execCommand("copy"); }} catch (e) {{ ok = false; }}
-    document.body.removeChild(ta);
-    return ok;
-  }}
-  btn.addEventListener("click", function(e) {{
-    e.preventDefault();
-    const done = function() {{
-      btn.innerText = "已复制 ✓";
-      setTimeout(function() {{ btn.innerText = "复制 Prompt"; }}, 2000);
-    }};
-    if (navigator.clipboard && window.isSecureContext) {{
-      navigator.clipboard.writeText(text).then(done).catch(function() {{
-        if (copyViaExecCommand(text)) done();
-        else btn.innerText = "请用下方文本框复制";
-      }});
-      return;
-    }}
-    if (copyViaExecCommand(text)) {{
-      done();
-    }} else {{
-      btn.innerText = "请用下方文本框复制";
-      setTimeout(function() {{ btn.innerText = "复制 Prompt"; }}, 2500);
-    }}
-  }});
-}})();
-</script>
-</body></html>""",
-        height=56,
-        scrolling=False,
-    )
-
-
-def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit) -> None:
-    """Prompt copy UI that works over remote HTTP (no secure clipboard API)."""
+def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit, idx: int = 0) -> None:
+    """Prompt copy UI without iframe/html components (avoids browser freeze on rerun)."""
     st.caption("复制 Prompt 到 Cursor")
-    _copy_prompt_button(
-        prompt_text,
-        element_key=_hit_element_key("prompt-copy", service, hit),
-    )
     st.download_button(
         "下载 Prompt (.txt)",
         data=prompt_text.encode("utf-8"),
         file_name=f"{hit.stock_key.replace(':', '_')}_prompt.txt",
         mime="text/plain",
-        key=_hit_element_key("prompt-dl", service, hit),
+        key=_hit_element_key("prompt-dl", service, hit, idx=idx),
         use_container_width=True,
     )
     st.text_area(
         "Prompt 文本",
         prompt_text,
         height=180,
-        key=_hit_element_key("prompt-view", service, hit),
+        key=_hit_element_key("prompt-view", service, hit, idx=idx),
         label_visibility="collapsed",
     )
-    st.caption("若一键复制无效：点击上方文本框 → Ctrl+A 全选 → Ctrl+C 复制")
+    st.caption("点击上方文本框 → Ctrl+A 全选 → Ctrl+C 复制（远程 HTTP 下一键剪贴板常不可用）")
 
 
 def _candidate_label(hit) -> str:
     return f"{hit.name} ({hit.market.value.upper()}:{hit.code})"
 
 
-def _disposition_selector(service: ReviewService, hit) -> None:
+def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
     current = service.get_disposition_kind(hit.stock_key)
     st.caption("标记（三选一，可随时修改）")
     cols = st.columns(len(DISPOSITION_KINDS))
@@ -149,7 +66,7 @@ def _disposition_selector(service: ReviewService, hit) -> None:
             btn_type = "primary" if current == kind else "secondary"
             if st.button(
                 label,
-                key=_hit_element_key(f"disp-{kind}", service, hit),
+                key=_hit_element_key(f"disp-{kind}", service, hit, idx=idx),
                 type=btn_type,
                 use_container_width=True,
             ):
@@ -159,6 +76,8 @@ def _disposition_selector(service: ReviewService, hit) -> None:
                     st.rerun()
     if current is None:
         st.caption("当前未标记")
+    else:
+        st.caption(f"当前标记：{service.disposition_label(current)}")
 
 
 def _disposition_rows(service: ReviewService, kind: str) -> list[dict[str, object]]:
@@ -259,12 +178,16 @@ def _page_candidates(service: ReviewService) -> None:
 
     _render_payload_banner(payload, service)
 
-    for hit in payload.candidates:
+    for idx, hit in enumerate(payload.candidates):
         st.divider()
         header_cols = st.columns([3, 2])
         with header_cols[0]:
             st.subheader(f"{hit.name} ({hit.market.value.upper()}:{hit.code})")
-            st.write(f"轨道: {hit.track} | 分数: {hit.score:.1f}")
+            sources = hit.metrics.get("source_strategies") or (
+                [hit.metrics["source_strategy"]] if hit.metrics.get("source_strategy") else []
+            )
+            source_txt = " / ".join(sources) if sources else "-"
+            st.write(f"轨道: {hit.track} | 分数: {hit.score:.1f} | 来源策略: {source_txt}")
             st.json(hit.metrics, expanded=False)
             cached = service.get_cached_analysis_table(hit)
             if cached:
@@ -272,8 +195,8 @@ def _page_candidates(service: ReviewService) -> None:
                 st.table(cached)
         with header_cols[1]:
             prompt_text = service.build_prompt(hit)
-            _prompt_copy_ui(prompt_text, service=service, hit=hit)
-            _disposition_selector(service, hit)
+            _prompt_copy_ui(prompt_text, service=service, hit=hit, idx=idx)
+            _disposition_selector(service, hit, idx=idx)
 
 
 def _page_paste(service: ReviewService) -> None:

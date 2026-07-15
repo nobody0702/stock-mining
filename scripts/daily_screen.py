@@ -159,7 +159,12 @@ def main() -> int:
         print(f"已写入: {result.csv_path}")
 
     if set(job_ids) == set(MINING_STRATEGIES.keys()):
-        print(f"\n合并总计 {total} 只 → data/results/all_candidates.json")
+        from stock_mining.pipeline.candidate_index import dedupe_candidates_by_stock_key
+
+        unique = len(dedupe_candidates_by_stock_key([hit for r in results for hit in r.hits]))
+        print(
+            f"\n合并命中 {total} 条（去重后 {unique} 只）→ data/results/all_candidates.json"
+        )
 
     if len(job_ids) == 1:
         review_cmd = f"python3 scripts/serve_review.py --strategy {job_ids[0]}"
