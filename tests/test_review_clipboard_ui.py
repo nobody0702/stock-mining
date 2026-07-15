@@ -113,8 +113,131 @@ def test_prompt_copy_ui_uses_one_iframe_and_does_not_raise():
     assert "hello prompt" in recorded[0]
 
 
-def test_disposition_selector_never_calls_rerun():
-    """Regression: explicit fragment rerun → 'fragment ... does not exist anymore'."""
+def _label_map(kind: str) -> str:
+    from stock_mining.state.disposition import DispositionKind
+
+    return {
+        DispositionKind.NOT_INTERESTED: "不感兴趣",
+        DispositionKind.TOO_EXPENSIVE: "价格偏贵",
+        DispositionKind.WATCHLIST: "加入自选",
+    }[kind]
+
+
+def test_apply_disposition_change_sets_toast_for_next_paint():
+    from stock_mining.state.disposition import DispositionKind
+    from stock_mining.web import review_app
+
+    hit = CandidateHit(
+        code="301327",
+        name="华宝新能",
+        market=Market.A,
+        track="loss_tolerant_growth",
+        score=70.0,
+        metrics={"price": 10.0},
+    )
+    service = MagicMock()
+    service.get_disposition_kind.return_value = DispositionKind.TOO_EXPENSIVE
+    service.disposition_label.side_effect = _label_map
+    state: dict = {}
+
+    with patch.object(review_app.st, "session_state", state):
+        changed = review_app.apply_disposition_change(
+            service,
+            hit,
+            DispositionKind.NOT_INTERESTED,
+            toast_key="toast-1",
+        )
+
+    assert changed is True
+    service.set_disposition.assert_called_once_with(hit, DispositionKind.NOT_INTERESTED)
+    assert state["toast-1"] == "不感兴趣"
+
+
+def test_apply_disposition_change_noop_when_unchanged():
+    from stock_mining.state.disposition import DispositionKind
+    from stock_mining.web import review_app
+
+    hit = CandidateHit(
+        code="600519",
+        name="贵州茅台",
+        market=Market.A,
+        track="profitable_growth",
+        score=90.0,
+        metrics={"price": 100.0},
+    )
+    service = MagicMock()
+    service.get_disposition_kind.return_value = DispositionKind.NOT_INTERESTED
+    state: dict = {}
+
+    with patch.object(review_app.st, "session_state", state):
+        changed = review_app.apply_disposition_change(
+            service,
+            hit,
+            DispositionKind.NOT_INTERESTED,
+            toast_key="toast-1",
+        )
+
+    assert changed is False
+    service.set_disposition.assert_not_called()
+    assert state == {}
+
+
+def test_disposition_selector_first_paint_uses_primary_after_onclick():
+    """iPhone bug: toast on 1st tap but primary color only after 2nd tap."""
+    from stock_mining.state.disposition import DispositionKind
+    from stock_mining.web import review_app
+
+    hit = CandidateHit(
+        code="301327",
+        name="华宝新能",
+        market=Market.A,
+        track="loss_tolerant_growth",
+        score=70.0,
+        metrics={"price": 10.0},
+    )
+    service = MagicMock()
+    service.strategy_id = "all"
+    # Streamlit order: on_click already persisted before this fragment paint.
+    service.get_disposition_kind.return_value = DispositionKind.NOT_INTERESTED
+    service.disposition_label.side_effect = _label_map
+
+    toast_key = review_app._disposition_toast_key(service, hit, idx=0)
+    state = {toast_key: "不感兴趣"}
+    button_calls: list[dict] = []
+    captions: list[str] = []
+    toasts: list[str] = []
+
+    def fake_button(label, *, key="", type="secondary", on_click=None, **kwargs):
+        button_calls.append({"label": label, "key": key, "type": type, "on_click": on_click})
+        return False
+
+    col = MagicMock()
+    col.__enter__ = MagicMock(return_value=col)
+    col.__exit__ = MagicMock(return_value=False)
+
+    with (
+        patch.object(review_app.st, "session_state", state),
+        patch.object(review_app.st, "caption", side_effect=lambda msg, *a, **k: captions.append(msg)),
+        patch.object(review_app.st, "columns", return_value=[col, col, col]),
+        patch.object(review_app.st, "button", side_effect=fake_button),
+        patch.object(review_app.st, "toast", side_effect=lambda msg, *a, **k: toasts.append(msg)),
+        patch.object(review_app.st, "rerun") as rerun,
+    ):
+        review_app._disposition_selector(service, hit, idx=0)
+
+    rerun.assert_not_called()
+    assert any("不感兴趣" in t for t in toasts)
+    assert any(c == "当前标记：不感兴趣" for c in captions)
+    by_key = {b["key"]: b for b in button_calls}
+    ni = next(b for k, b in by_key.items() if "disp-not_interested" in k)
+    te = next(b for k, b in by_key.items() if "disp-too_expensive" in k)
+    assert ni["type"] == "primary"
+    assert te["type"] == "secondary"
+    assert ni["on_click"] is review_app.apply_disposition_change
+    assert toast_key not in state  # consumed for toast
+
+
+def test_disposition_selector_wires_onclick_args_for_kind_switch():
     from stock_mining.state.disposition import DispositionKind
     from stock_mining.web import review_app
 
@@ -129,35 +252,40 @@ def test_disposition_selector_never_calls_rerun():
     service = MagicMock()
     service.strategy_id = "all"
     service.get_disposition_kind.return_value = DispositionKind.TOO_EXPENSIVE
-    service.disposition_label.side_effect = lambda k: {
-        DispositionKind.NOT_INTERESTED: "不感兴趣",
-        DispositionKind.TOO_EXPENSIVE: "价格偏贵",
-        DispositionKind.WATCHLIST: "加入自选",
-    }[k]
+    service.disposition_label.side_effect = _label_map
 
-    captions: list[str] = []
-    toasts: list[str] = []
+    wired: dict[str, dict] = {}
+    state: dict = {}
 
-    def fake_button(label, *, key="", **kwargs):
-        return "disp-not_interested" in key
+    def fake_button(label, *, key="", on_click=None, args=None, kwargs=None, **kw):
+        wired[key] = {"on_click": on_click, "args": args, "kwargs": kwargs or {}}
+        return False
 
     col = MagicMock()
     col.__enter__ = MagicMock(return_value=col)
     col.__exit__ = MagicMock(return_value=False)
 
     with (
-        patch.object(review_app.st, "caption", side_effect=lambda msg, *a, **k: captions.append(msg)),
+        patch.object(review_app.st, "session_state", state),
+        patch.object(review_app.st, "caption"),
         patch.object(review_app.st, "columns", return_value=[col, col, col]),
         patch.object(review_app.st, "button", side_effect=fake_button),
-        patch.object(review_app.st, "toast", side_effect=lambda msg, *a, **k: toasts.append(msg)),
+        patch.object(review_app.st, "toast"),
         patch.object(review_app.st, "rerun") as rerun,
     ):
         review_app._disposition_selector(service, hit, idx=0)
 
+        key = next(k for k in wired if "disp-not_interested" in k)
+        cb = wired[key]["on_click"]
+        args = wired[key]["args"]
+        kwargs = wired[key]["kwargs"]
+        # Simulate Streamlit invoking on_click before the next fragment paint.
+        cb(*args, **kwargs)
+
     service.set_disposition.assert_called_once_with(hit, DispositionKind.NOT_INTERESTED)
     rerun.assert_not_called()
-    assert any("不感兴趣" in t for t in toasts)
-    assert any(c == "当前标记：不感兴趣" for c in captions)
+    toast_key = review_app._disposition_toast_key(service, hit, idx=0)
+    assert state[toast_key] == "不感兴趣"
 
 
 def test_disposition_selector_noop_when_already_selected():
@@ -175,16 +303,21 @@ def test_disposition_selector_noop_when_already_selected():
     service = MagicMock()
     service.strategy_id = "all"
     service.get_disposition_kind.return_value = DispositionKind.NOT_INTERESTED
-    service.disposition_label.side_effect = lambda k: k
+    service.disposition_label.side_effect = _label_map
 
-    def fake_button(label, *, key="", **kwargs):
-        return "disp-not_interested" in key
+    wired: dict[str, dict] = {}
+    state: dict = {}
+
+    def fake_button(label, *, key="", on_click=None, args=None, kwargs=None, **kw):
+        wired[key] = {"on_click": on_click, "args": args, "kwargs": kwargs or {}}
+        return False
 
     col = MagicMock()
     col.__enter__ = MagicMock(return_value=col)
     col.__exit__ = MagicMock(return_value=False)
 
     with (
+        patch.object(review_app.st, "session_state", state),
         patch.object(review_app.st, "caption"),
         patch.object(review_app.st, "columns", return_value=[col, col, col]),
         patch.object(review_app.st, "button", side_effect=fake_button),
@@ -192,10 +325,13 @@ def test_disposition_selector_noop_when_already_selected():
         patch.object(review_app.st, "rerun") as rerun,
     ):
         review_app._disposition_selector(service, hit, idx=0)
+        key = next(k for k in wired if "disp-not_interested" in k)
+        wired[key]["on_click"](*wired[key]["args"], **wired[key]["kwargs"])
 
     service.set_disposition.assert_not_called()
     toast.assert_not_called()
     rerun.assert_not_called()
+    assert state == {}
 
 
 def test_candidate_card_is_streamlit_fragment():

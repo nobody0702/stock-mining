@@ -75,14 +75,46 @@ def _candidate_label(hit) -> str:
     return f"{hit.name} ({hit.market.value.upper()}:{hit.code})"
 
 
+def _disposition_toast_key(service: ReviewService, hit, *, idx: int = 0) -> str:
+    return _hit_element_key("disp-toast", service, hit, idx=idx)
+
+
+def apply_disposition_change(
+    service: ReviewService,
+    hit,
+    kind: str,
+    *,
+    toast_key: str,
+) -> bool:
+    """Persist a new mark. Intended for ``st.button(on_click=...)``.
+
+    Streamlit runs ``on_click`` *before* the fragment rerun, so the next paint
+    already sees the new disposition and can style the primary button correctly
+    on the first tap (important on iPhone where a same-run ``current = kind``
+    update is too late — the button widget was already created).
+    """
+    if service.get_disposition_kind(hit.stock_key) == kind:
+        return False
+    service.set_disposition(hit, kind)
+    st.session_state[toast_key] = service.disposition_label(kind)
+    return True
+
+
 def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
     """Mark buttons live inside ``@st.fragment`` (_candidate_card).
 
+    Persist via ``on_click`` (not the button return value) so primary/secondary
+    styling is correct on the first fragment paint after a tap.
+
     Do **not** call ``st.rerun(scope="fragment")`` here: the button click already
     triggers an automatic fragment rerun. An extra explicit fragment rerun can
-    race with Streamlit's fragment lifecycle and raise
-    ``The fragment with id ... does not exist anymore``.
+    raise ``The fragment with id ... does not exist anymore``.
     """
+    toast_key = _disposition_toast_key(service, hit, idx=idx)
+    pending_toast = st.session_state.pop(toast_key, None)
+    if pending_toast is not None:
+        st.toast(f"已标记为「{pending_toast}」")
+
     current = service.get_disposition_kind(hit.stock_key)
     st.caption("标记（三选一，可随时修改）")
     cols = st.columns(len(DISPOSITION_KINDS))
@@ -90,17 +122,15 @@ def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
         with col:
             label = service.disposition_label(kind)
             btn_type = "primary" if current == kind else "secondary"
-            if st.button(
+            st.button(
                 label,
                 key=_hit_element_key(f"disp-{kind}", service, hit, idx=idx),
                 type=btn_type,
                 use_container_width=True,
-            ):
-                if current != kind:
-                    service.set_disposition(hit, kind)
-                    st.toast(f"已标记为「{label}」")
-                    # Same fragment run: refresh local UI without another rerun.
-                    current = kind
+                on_click=apply_disposition_change,
+                args=(service, hit, kind),
+                kwargs={"toast_key": toast_key},
+            )
     if current is None:
         st.caption("当前未标记")
     else:
