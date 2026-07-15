@@ -135,8 +135,14 @@ def test_review_service_load_dedupes_legacy_all_json(tmp_path):
     assert loaded[0].score == 70.4
 
 
-def test_review_app_has_no_components_html():
-    """Regression: many components.html iframes freeze the browser on rerun."""
+def test_review_app_copy_iframes_are_fragment_isolated():
+    """Regression: copy iframes are OK only if disposition can't remount all of them."""
     text = (ROOT / "stock_mining" / "web" / "review_app.py").read_text(encoding="utf-8")
-    assert "components.html" not in text
-    assert "streamlit.components.v1" not in text
+    assert "@st.fragment" in text
+    assert "def _candidate_card" in text
+    assert 'st.rerun(scope="fragment")' in text
+    assert "build_copy_prompt_html" in text
+    # Disposition path must use fragment-scoped rerun (full-app remount thrash freezes).
+    disp_fn = text.split("def _disposition_selector", 1)[1].split("\ndef ", 1)[0]
+    assert 'st.rerun(scope="fragment")' in disp_fn
+    assert "st.rerun()" not in disp_fn

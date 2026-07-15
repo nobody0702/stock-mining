@@ -9,10 +9,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
 from stock_mining.strategies import list_strategies
+from stock_mining.web.clipboard_button import (
+    COPY_BUTTON_IFRAME_HEIGHT,
+    build_copy_prompt_html,
+)
 from stock_mining.web.review_service import (
     CandidatesPayload,
     ReviewService,
@@ -31,9 +36,22 @@ def _hit_element_key(prefix: str, service: ReviewService, hit, *, idx: int = 0) 
     return f"{prefix}-{service.strategy_id}-{hit.stock_key}-{hit.track}-{idx}"
 
 
+def _copy_prompt_button(text: str, *, element_key: str) -> None:
+    """One-tap copy button (iframe). Keep call sites inside ``@st.fragment``."""
+    components.html(
+        build_copy_prompt_html(text, element_key=element_key),
+        height=COPY_BUTTON_IFRAME_HEIGHT,
+        scrolling=False,
+    )
+
+
 def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit, idx: int = 0) -> None:
-    """Prompt copy UI without iframe/html components (avoids browser freeze on rerun)."""
+    """Prompt copy UI: one-tap button + download fallback (iPhone / remote HTTP)."""
     st.caption("复制 Prompt 到 Cursor")
+    _copy_prompt_button(
+        prompt_text,
+        element_key=_hit_element_key("prompt-copy", service, hit, idx=idx),
+    )
     st.download_button(
         "下载 Prompt (.txt)",
         data=prompt_text.encode("utf-8"),
@@ -42,14 +60,15 @@ def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit, idx: int =
         key=_hit_element_key("prompt-dl", service, hit, idx=idx),
         use_container_width=True,
     )
-    st.text_area(
-        "Prompt 文本",
-        prompt_text,
-        height=180,
-        key=_hit_element_key("prompt-view", service, hit, idx=idx),
-        label_visibility="collapsed",
-    )
-    st.caption("点击上方文本框 → Ctrl+A 全选 → Ctrl+C 复制（远程 HTTP 下一键剪贴板常不可用）")
+    with st.expander("查看 / 手动复制 Prompt", expanded=False):
+        st.text_area(
+            "Prompt 文本",
+            prompt_text,
+            height=180,
+            key=_hit_element_key("prompt-view", service, hit, idx=idx),
+            label_visibility="collapsed",
+        )
+        st.caption("若一键复制无效：点开文本 → 长按全选复制（iPhone）或 Ctrl+A / Ctrl+C")
 
 
 def _candidate_label(hit) -> str:
@@ -73,7 +92,8 @@ def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
                 if current != kind:
                     service.set_disposition(hit, kind)
                     st.toast(f"已标记为「{label}」")
-                    st.rerun()
+                    # Fragment-scoped: avoid remounting every copy iframe on the page.
+                    st.rerun(scope="fragment")
     if current is None:
         st.caption("当前未标记")
     else:
@@ -165,6 +185,28 @@ def main(default_strategy: str | None = None) -> None:
         _page_my_marks(service)
 
 
+@st.fragment
+def _candidate_card(service: ReviewService, hit, idx: int) -> None:
+    """Isolate each card so disposition clicks don't remount every copy iframe."""
+    header_cols = st.columns([3, 2])
+    with header_cols[0]:
+        st.subheader(f"{hit.name} ({hit.market.value.upper()}:{hit.code})")
+        sources = hit.metrics.get("source_strategies") or (
+            [hit.metrics["source_strategy"]] if hit.metrics.get("source_strategy") else []
+        )
+        source_txt = " / ".join(sources) if sources else "-"
+        st.write(f"轨道: {hit.track} | 分数: {hit.score:.1f} | 来源策略: {source_txt}")
+        st.json(hit.metrics, expanded=False)
+        cached = service.get_cached_analysis_table(hit)
+        if cached:
+            st.success("已有有效定性缓存")
+            st.table(cached)
+    with header_cols[1]:
+        prompt_text = service.build_prompt(hit)
+        _prompt_copy_ui(prompt_text, service=service, hit=hit, idx=idx)
+        _disposition_selector(service, hit, idx=idx)
+
+
 def _page_candidates(service: ReviewService) -> None:
     st.header("今日候选")
     payload = service.load_candidates_payload()
@@ -180,23 +222,7 @@ def _page_candidates(service: ReviewService) -> None:
 
     for idx, hit in enumerate(payload.candidates):
         st.divider()
-        header_cols = st.columns([3, 2])
-        with header_cols[0]:
-            st.subheader(f"{hit.name} ({hit.market.value.upper()}:{hit.code})")
-            sources = hit.metrics.get("source_strategies") or (
-                [hit.metrics["source_strategy"]] if hit.metrics.get("source_strategy") else []
-            )
-            source_txt = " / ".join(sources) if sources else "-"
-            st.write(f"轨道: {hit.track} | 分数: {hit.score:.1f} | 来源策略: {source_txt}")
-            st.json(hit.metrics, expanded=False)
-            cached = service.get_cached_analysis_table(hit)
-            if cached:
-                st.success("已有有效定性缓存")
-                st.table(cached)
-        with header_cols[1]:
-            prompt_text = service.build_prompt(hit)
-            _prompt_copy_ui(prompt_text, service=service, hit=hit, idx=idx)
-            _disposition_selector(service, hit, idx=idx)
+        _candidate_card(service, hit, idx)
 
 
 def _page_paste(service: ReviewService) -> None:
@@ -216,7 +242,7 @@ def _page_paste(service: ReviewService) -> None:
     hit = by_key[selected_key]
 
     prompt = service.build_prompt(hit)
-    st.text_area("Prompt（复制到 Cursor）", prompt, height=220)
+    _prompt_copy_ui(prompt, service=service, hit=hit, idx=0)
     pasted = st.text_area("粘贴 LLM 返回的 Markdown 表格", height=220)
 
     if st.button("提交分析", type="primary"):
