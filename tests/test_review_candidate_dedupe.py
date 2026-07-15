@@ -136,13 +136,29 @@ def test_review_service_load_dedupes_legacy_all_json(tmp_path):
 
 
 def test_review_app_copy_iframes_are_fragment_isolated():
-    """Regression: copy iframes are OK only if disposition can't remount all of them."""
+    """Copy iframes stay on per-card fragments; disposition must not force extra reruns."""
+    import ast
+
     text = (ROOT / "stock_mining" / "web" / "review_app.py").read_text(encoding="utf-8")
     assert "@st.fragment" in text
     assert "def _candidate_card" in text
-    assert 'st.rerun(scope="fragment")' in text
     assert "build_copy_prompt_html" in text
-    # Disposition path must use fragment-scoped rerun (full-app remount thrash freezes).
-    disp_fn = text.split("def _disposition_selector", 1)[1].split("\ndef ", 1)[0]
-    assert 'st.rerun(scope="fragment")' in disp_fn
-    assert "st.rerun()" not in disp_fn
+
+    tree = ast.parse(text)
+    disp_fn = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_disposition_selector"
+    )
+    # Extra st.rerun(scope="fragment") races Streamlit fragment lifecycle and
+    # surfaces: "The fragment with id ... does not exist anymore".
+    calls = [
+        n
+        for n in ast.walk(disp_fn)
+        if isinstance(n, ast.Call)
+        and (
+            (isinstance(n.func, ast.Attribute) and n.func.attr == "rerun")
+            or (isinstance(n.func, ast.Name) and n.func.id == "rerun")
+        )
+    ]
+    assert calls == []

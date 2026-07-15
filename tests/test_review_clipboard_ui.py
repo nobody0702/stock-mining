@@ -113,8 +113,9 @@ def test_prompt_copy_ui_uses_one_iframe_and_does_not_raise():
     assert "hello prompt" in recorded[0]
 
 
-def test_disposition_selector_reruns_fragment_only_not_full_app():
-    """Regression: full-app rerun remounts every copy iframe and freezes the page."""
+def test_disposition_selector_never_calls_rerun():
+    """Regression: explicit fragment rerun → 'fragment ... does not exist anymore'."""
+    from stock_mining.state.disposition import DispositionKind
     from stock_mining.web import review_app
 
     hit = CandidateHit(
@@ -127,13 +128,57 @@ def test_disposition_selector_reruns_fragment_only_not_full_app():
     )
     service = MagicMock()
     service.strategy_id = "all"
-    service.get_disposition_kind.return_value = None
+    service.get_disposition_kind.return_value = DispositionKind.TOO_EXPENSIVE
+    service.disposition_label.side_effect = lambda k: {
+        DispositionKind.NOT_INTERESTED: "不感兴趣",
+        DispositionKind.TOO_EXPENSIVE: "价格偏贵",
+        DispositionKind.WATCHLIST: "加入自选",
+    }[k]
+
+    captions: list[str] = []
+    toasts: list[str] = []
+
+    def fake_button(label, *, key="", **kwargs):
+        return "disp-not_interested" in key
+
+    col = MagicMock()
+    col.__enter__ = MagicMock(return_value=col)
+    col.__exit__ = MagicMock(return_value=False)
+
+    with (
+        patch.object(review_app.st, "caption", side_effect=lambda msg, *a, **k: captions.append(msg)),
+        patch.object(review_app.st, "columns", return_value=[col, col, col]),
+        patch.object(review_app.st, "button", side_effect=fake_button),
+        patch.object(review_app.st, "toast", side_effect=lambda msg, *a, **k: toasts.append(msg)),
+        patch.object(review_app.st, "rerun") as rerun,
+    ):
+        review_app._disposition_selector(service, hit, idx=0)
+
+    service.set_disposition.assert_called_once_with(hit, DispositionKind.NOT_INTERESTED)
+    rerun.assert_not_called()
+    assert any("不感兴趣" in t for t in toasts)
+    assert any(c == "当前标记：不感兴趣" for c in captions)
+
+
+def test_disposition_selector_noop_when_already_selected():
+    from stock_mining.state.disposition import DispositionKind
+    from stock_mining.web import review_app
+
+    hit = CandidateHit(
+        code="600519",
+        name="贵州茅台",
+        market=Market.A,
+        track="profitable_growth",
+        score=90.0,
+        metrics={"price": 100.0},
+    )
+    service = MagicMock()
+    service.strategy_id = "all"
+    service.get_disposition_kind.return_value = DispositionKind.NOT_INTERESTED
     service.disposition_label.side_effect = lambda k: k
 
-    rerun_scopes: list[object] = []
-
-    def fake_rerun(*, scope="app"):
-        rerun_scopes.append(scope)
+    def fake_button(label, *, key="", **kwargs):
+        return "disp-not_interested" in key
 
     col = MagicMock()
     col.__enter__ = MagicMock(return_value=col)
@@ -142,15 +187,15 @@ def test_disposition_selector_reruns_fragment_only_not_full_app():
     with (
         patch.object(review_app.st, "caption"),
         patch.object(review_app.st, "columns", return_value=[col, col, col]),
-        patch.object(review_app.st, "button", return_value=True),
-        patch.object(review_app.st, "toast"),
-        patch.object(review_app.st, "rerun", side_effect=fake_rerun),
+        patch.object(review_app.st, "button", side_effect=fake_button),
+        patch.object(review_app.st, "toast") as toast,
+        patch.object(review_app.st, "rerun") as rerun,
     ):
         review_app._disposition_selector(service, hit, idx=0)
 
-    service.set_disposition.assert_called()
-    assert rerun_scopes
-    assert all(scope == "fragment" for scope in rerun_scopes)
+    service.set_disposition.assert_not_called()
+    toast.assert_not_called()
+    rerun.assert_not_called()
 
 
 def test_candidate_card_is_streamlit_fragment():

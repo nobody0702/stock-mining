@@ -76,6 +76,13 @@ def _candidate_label(hit) -> str:
 
 
 def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
+    """Mark buttons live inside ``@st.fragment`` (_candidate_card).
+
+    Do **not** call ``st.rerun(scope="fragment")`` here: the button click already
+    triggers an automatic fragment rerun. An extra explicit fragment rerun can
+    race with Streamlit's fragment lifecycle and raise
+    ``The fragment with id ... does not exist anymore``.
+    """
     current = service.get_disposition_kind(hit.stock_key)
     st.caption("标记（三选一，可随时修改）")
     cols = st.columns(len(DISPOSITION_KINDS))
@@ -92,8 +99,8 @@ def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
                 if current != kind:
                     service.set_disposition(hit, kind)
                     st.toast(f"已标记为「{label}」")
-                    # Fragment-scoped: avoid remounting every copy iframe on the page.
-                    st.rerun(scope="fragment")
+                    # Same fragment run: refresh local UI without another rerun.
+                    current = kind
     if current is None:
         st.caption("当前未标记")
     else:
