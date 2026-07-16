@@ -4782,5 +4782,37 @@
     "reference_price": null,
     "set_at": "2026-07-15T19:20:59.755862",
     "release_at": "2027-01-14T19:20:59.755862"
+  },
+  {
+    "stock_key": "a:688789",
+    "name": "宏华数科",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-16T09:29:00.540758",
+    "release_at": "2027-01-15T09:29:00.540758"
+  },
+  {
+    "stock_key": "a:688625",
+    "name": "呈和科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-16T09:29:40.817691",
+    "release_at": "2027-01-15T09:29:40.817691"
+  },
+  {
+    "stock_key": "a:688300",
+    "name": "联瑞新材",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-16T09:30:12.882970",
+    "release_at": "2027-01-15T09:30:12.882970"
+  },
+  {
+    "stock_key": "a:603977",
+    "name": "国泰集团",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-16T09:30:39.158814",
+    "release_at": "2027-01-15T09:30:39.158814"
   }
 ]
