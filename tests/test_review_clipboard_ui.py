@@ -61,20 +61,20 @@ def test_build_copy_prompt_html_rejects_broken_button_without_click_handler():
     assert "busy" in html  # double-tap guard
 
 
-def test_copy_prompt_button_calls_components_html_once():
+def test_copy_prompt_button_calls_st_iframe_once():
     from stock_mining.web import review_app
 
     recorded: list[dict] = []
 
-    def fake_html(body, *, height, scrolling):
-        recorded.append({"body": body, "height": height, "scrolling": scrolling})
+    def fake_iframe(body, *, height, width="stretch"):
+        recorded.append({"body": body, "height": height, "width": width})
 
-    with patch.object(review_app.components, "html", side_effect=fake_html):
+    with patch.object(review_app.st, "iframe", side_effect=fake_iframe):
         review_app._copy_prompt_button("prompt body", element_key="t-key")
 
     assert len(recorded) == 1
     assert recorded[0]["height"] == COPY_BUTTON_IFRAME_HEIGHT
-    assert recorded[0]["scrolling"] is False
+    assert recorded[0]["width"] == "stretch"
     assert "prompt body" in recorded[0]["body"]
     assert "复制 Prompt" in recorded[0]["body"]
 
@@ -95,11 +95,11 @@ def test_prompt_copy_ui_uses_one_iframe_and_does_not_raise():
 
     recorded: list[str] = []
 
-    def fake_html(body, **kwargs):
+    def fake_iframe(body, **kwargs):
         recorded.append(body)
 
     with (
-        patch.object(review_app.components, "html", side_effect=fake_html),
+        patch.object(review_app.st, "iframe", side_effect=fake_iframe),
         patch.object(review_app.st, "caption"),
         patch.object(review_app.st, "download_button"),
         patch.object(review_app.st, "text_area"),
@@ -197,7 +197,7 @@ def test_disposition_selector_first_paint_uses_primary_after_onclick():
     )
     service = MagicMock()
     service.strategy_id = "all"
-    # Streamlit order: on_click already persisted before this fragment paint.
+    # Streamlit order: on_click already persisted before this paint.
     service.get_disposition_kind.return_value = DispositionKind.NOT_INTERESTED
     service.disposition_label.side_effect = _label_map
 
@@ -279,7 +279,7 @@ def test_disposition_selector_wires_onclick_args_for_kind_switch():
         cb = wired[key]["on_click"]
         args = wired[key]["args"]
         kwargs = wired[key]["kwargs"]
-        # Simulate Streamlit invoking on_click before the next fragment paint.
+        # Simulate Streamlit invoking on_click before the next paint.
         cb(*args, **kwargs)
 
     service.set_disposition.assert_called_once_with(hit, DispositionKind.NOT_INTERESTED)
@@ -334,13 +334,13 @@ def test_disposition_selector_noop_when_already_selected():
     assert state == {}
 
 
-def test_candidate_card_is_streamlit_fragment():
+def test_candidate_card_is_not_streamlit_fragment():
+    """Disposition clicks must use a full app run, not a per-card fragment."""
     from stock_mining.web.review_app import _candidate_card
 
-    assert getattr(_candidate_card, "__wrapped__", None) is not None or hasattr(
-        _candidate_card, "fragment_id"
-    ) or callable(_candidate_card)
-    # Streamlit marks fragments; ensure decorator applied (function still callable).
+    assert not hasattr(_candidate_card, "fragment_id")
+    # ``@st.fragment`` wraps the callable; undecorated function has no __wrapped__.
+    assert getattr(_candidate_card, "__wrapped__", None) is None
     assert callable(_candidate_card)
 
 

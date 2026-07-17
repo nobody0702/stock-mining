@@ -9,7 +9,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from stock_mining.pipeline.candidate_index import index_by_stock_key
 from stock_mining.state.disposition import DispositionKind
@@ -37,11 +36,11 @@ def _hit_element_key(prefix: str, service: ReviewService, hit, *, idx: int = 0) 
 
 
 def _copy_prompt_button(text: str, *, element_key: str) -> None:
-    """One-tap copy button (iframe). Keep call sites inside ``@st.fragment``."""
-    components.html(
+    """One-tap copy button via ``st.iframe`` (replaces deprecated ``components.html``)."""
+    st.iframe(
         build_copy_prompt_html(text, element_key=element_key),
         height=COPY_BUTTON_IFRAME_HEIGHT,
-        scrolling=False,
+        width="stretch",
     )
 
 
@@ -59,6 +58,7 @@ def _prompt_copy_ui(prompt_text: str, *, service: ReviewService, hit, idx: int =
         mime="text/plain",
         key=_hit_element_key("prompt-dl", service, hit, idx=idx),
         use_container_width=True,
+        on_click="ignore",
     )
     with st.expander("查看 / 手动复制 Prompt", expanded=False):
         st.text_area(
@@ -88,7 +88,7 @@ def apply_disposition_change(
 ) -> bool:
     """Persist a new mark. Intended for ``st.button(on_click=...)``.
 
-    Streamlit runs ``on_click`` *before* the fragment rerun, so the next paint
+    Streamlit runs ``on_click`` *before* the script/app rerun, so the next paint
     already sees the new disposition and can style the primary button correctly
     on the first tap (important on iPhone where a same-run ``current = kind``
     update is too late — the button widget was already created).
@@ -101,14 +101,15 @@ def apply_disposition_change(
 
 
 def _disposition_selector(service: ReviewService, hit, *, idx: int = 0) -> None:
-    """Mark buttons live inside ``@st.fragment`` (_candidate_card).
+    """Mark buttons on the main app run (not inside ``@st.fragment``).
 
     Persist via ``on_click`` (not the button return value) so primary/secondary
-    styling is correct on the first fragment paint after a tap.
+    styling is correct on the first paint after a tap.
 
-    Do **not** call ``st.rerun(scope="fragment")`` here: the button click already
-    triggers an automatic fragment rerun. An extra explicit fragment rerun can
-    raise ``The fragment with id ... does not exist anymore``.
+    Disposition used to live inside a per-card ``@st.fragment``. Clicks then
+    raced a fragment rerun against a full-app remount and logged
+    ``The fragment with id ... does not exist anymore`` while the UI looked
+    stuck. Keeping marks on the full app run avoids that lifecycle bug.
     """
     toast_key = _disposition_toast_key(service, hit, idx=idx)
     pending_toast = st.session_state.pop(toast_key, None)
@@ -222,9 +223,13 @@ def main(default_strategy: str | None = None) -> None:
         _page_my_marks(service)
 
 
-@st.fragment
 def _candidate_card(service: ReviewService, hit, idx: int) -> None:
-    """Isolate each card so disposition clicks don't remount every copy iframe."""
+    """Render one candidate row on the full app run.
+
+    Do not wrap this in ``@st.fragment``: disposition buttons need a normal
+    app rerun. Fragment-scoped mark clicks previously raced Streamlit's
+    fragment storage and surfaced ``fragment ... does not exist anymore``.
+    """
     header_cols = st.columns([3, 2])
     with header_cols[0]:
         st.subheader(f"{hit.name} ({hit.market.value.upper()}:{hit.code})")

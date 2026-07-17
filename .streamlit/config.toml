@@ -3,3 +3,6 @@ gatherUsageStats = false
 
 [server]
 headless = true
+# Disposition / cache writes under data/ must not trigger a full-app remount
+# while the UI is handling mark clicks.
+folderWatchBlacklist = ["data", ".venv", ".git", "logs"]

@@ -1,9 +1,7 @@
 """One-tap clipboard HTML for Streamlit (HTTP + iOS Safari friendly).
 
 Uses a tiny iframe with a real <button> click handler so copy happens inside a
-user gesture. Prefer this over mounting heavy components that remount on every
-full-page Streamlit rerun — call sites should keep the iframe inside
-``@st.fragment`` so disposition clicks only remount one card.
+user gesture. Render with ``st.iframe`` (not deprecated ``components.v1.html``).
 """
 
 from __future__ import annotations
@@ -15,7 +13,7 @@ _SAFE_ID_RE = re.compile(r"[^A-Za-z0-9_]+")
 _DEFAULT_LABEL = "复制 Prompt"
 _COPIED_LABEL = "已复制 ✓"
 _FALLBACK_LABEL = "请用下方文本框复制"
-# Streamlit html component height; keep small to avoid layout thrash.
+# Streamlit iframe height for the copy button; keep small to avoid layout thrash.
 COPY_BUTTON_IFRAME_HEIGHT = 52
 
 
