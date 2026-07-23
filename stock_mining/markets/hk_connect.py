@@ -110,11 +110,25 @@ class AkshareHkConnectProvider(MarketDataProvider):
             )
         return stocks
 
+    def list_resolve_stocks(self) -> list[StockInfo]:
+        """GGT screening universe plus full HK spot listings for single-stock lookup.
+
+        Prompt/analyze flows need non-Connect codes (e.g. 01045) to resolve;
+        daily screening still uses ``list_stocks`` (港股通 only).
+        """
+        by_code: dict[str, StockInfo] = {stock.code: stock for stock in self.list_stocks()}
+        for code, quote in self._ensure_sina_spot_quotes().items():
+            if code in by_code:
+                continue
+            name = (quote.name or "").strip() or code
+            by_code[code] = StockInfo(code=code, name=name, market=Market.HK)
+        return list(by_code.values())
+
     def _ensure_sina_spot_quotes(self) -> dict[str, HkSinaSpotQuote]:
         if self._sina_spot_quotes is not None:
             return self._sina_spot_quotes
 
-        cache_key = "sina_spot_quotes"
+        cache_key = "sina_spot_quotes_v2"
         if self.cache is not None:
             cached = self.cache.get("market", cache_key)
             if cached is not None:
@@ -123,6 +137,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
                         price=item.get("price"),
                         low_52w=item.get("low_52w"),
                         high_52w=item.get("high_52w"),
+                        name=item.get("name"),
                     )
                     for code, item in cached.items()
                 }
@@ -143,6 +158,7 @@ class AkshareHkConnectProvider(MarketDataProvider):
                         "price": quote.price,
                         "low_52w": quote.low_52w,
                         "high_52w": quote.high_52w,
+                        "name": quote.name,
                     }
                     for code, quote in quotes.items()
                 },

@@ -15,6 +15,14 @@ class MarketDataProvider(ABC):
     def list_stocks(self) -> list[StockInfo]:
         ...
 
+    def list_resolve_stocks(self) -> list[StockInfo]:
+        """Catalog for single-stock code/name resolution.
+
+        Defaults to the screening universe. Providers may return a broader
+        directory (e.g. all HK listings beyond Stock Connect).
+        """
+        return self.list_stocks()
+
     @abstractmethod
     def fetch_dividend_map(self) -> dict[str, float]:
         ...

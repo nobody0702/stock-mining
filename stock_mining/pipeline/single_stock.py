@@ -91,7 +91,10 @@ def build_live_stock_prompt(
         fast=fast_fetch,
     )
     if snapshot is None:
-        raise ValueError(f"无法获取 {market.value}:{normalized} 的行情快照")
+        raise ValueError(
+            f"无法获取 {market.value}:{normalized} 的行情快照"
+            f"（数据源未返回该代码的行情，可能是代码无效、已退市或接口暂时不可用）"
+        )
 
     stock = StockInfo(
         code=snapshot.code,
@@ -130,7 +133,7 @@ def build_live_stock_prompt(
 
 
 def _resolve_display_name(provider: MarketDataProvider, code: str) -> str | None:
-    for stock in provider.list_stocks():
+    for stock in provider.list_resolve_stocks():
         if stock.code == code:
             return stock.name
     return None

@@ -127,7 +127,8 @@ def main() -> int:
         resolved = resolve_stock_inputs(
             list(args.stocks),
             market=market,
-            list_stocks_fn=provider.list_stocks,
+            list_stocks_fn=provider.list_resolve_stocks,
+            allow_unknown_code=True,
         )
     except StockResolveError as exc:
         print(str(exc), file=sys.stderr)

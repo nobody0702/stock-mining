@@ -24,10 +24,12 @@ from stock_mining.web.prompt_query_service import (
     HK_SCREEN_CONFIG,
     PromptQueryError,
     PromptQueryResult,
+    format_prompt_failure,
     normalize_query_input,
     parse_query_market,
     query_live_prompt,
     resolve_screen_config_for_market,
+    status_error_label,
 )
 from test_pipeline import FakeProvider
 
@@ -177,8 +179,55 @@ def test_query_live_prompt_unknown_stock(monkeypatch):
         lambda *_a, **_k: _analysis_config(),
     )
 
-    with pytest.raises(PromptQueryError, match="未找到"):
-        query_live_prompt(root, market="a", query="999999")
+    with pytest.raises(PromptQueryError, match="选错市场|未找到名称"):
+        query_live_prompt(root, market="a", query="不存在的股票XYZ")
+
+
+def test_status_error_label_includes_concrete_reason():
+    label = status_error_label("在港股行情目录中未找到代码 h:99999。请确认市场与代码。")
+    assert label.startswith("查询失败：")
+    assert "未找到代码 h:99999" in label
+    assert "请确认" not in label  # only first sentence in status label
+
+
+def test_format_prompt_failure_explains_snapshot_miss():
+    message = format_prompt_failure(
+        ValueError("无法获取 h:01045 的行情快照"),
+        market=Market.HK,
+        query="亚太卫星/01045",
+    )
+    assert "行情快照失败" in message
+    assert "01045" in message
+    assert "港股" in message
+
+
+def test_query_live_prompt_accepts_code_outside_screen_universe(monkeypatch):
+    """Numeric codes may be outside list_stocks (e.g. HK non-Connect); still resolve."""
+    root = Path(__file__).resolve().parents[1]
+    provider = FakeProvider()
+    screener = _build_screener(provider)
+
+    def _snapshot(code: str, name: str, *, include_dividend: bool = True, fast: bool = False):
+        return provider.snapshot.__class__(
+            **{
+                **provider.snapshot.__dict__,
+                "code": code,
+                "name": name or code,
+            }
+        )
+
+    monkeypatch.setattr(provider, "fetch_stock_snapshot", _snapshot)
+    monkeypatch.setattr(
+        "stock_mining.web.prompt_query_service.load_live_screener",
+        lambda *_a, **_k: screener,
+    )
+    monkeypatch.setattr(
+        "stock_mining.web.prompt_query_service.load_dimensions_config",
+        lambda *_a, **_k: _analysis_config(),
+    )
+
+    result = query_live_prompt(root, market="a", query="600519")
+    assert result.code == "600519"
 
 
 def test_query_live_prompt_empty_input(monkeypatch):
@@ -280,14 +329,19 @@ def test_prompt_query_app_run_query_error_clears_result():
         patch.object(
             prompt_query_app,
             "query_live_prompt",
-            side_effect=PromptQueryError("未找到股票代码: a:999999"),
+            side_effect=PromptQueryError(
+                "在A股股票列表中未找到代码 a:999999。请确认代码正确，或改用股票名称。"
+            ),
         ),
     ):
         prompt_query_app._run_query("a", "999999")
 
     assert state[prompt_query_app._RESULT_KEY] is None
-    assert "未找到" in state[prompt_query_app._ERROR_KEY]
-    status.update.assert_called_with(label="查询失败", state="error")
+    assert "未找到代码 a:999999" in state[prompt_query_app._ERROR_KEY]
+    status.update.assert_called_with(
+        label="查询失败：在A股股票列表中未找到代码 a:999999",
+        state="error",
+    )
 
 
 def test_prompt_query_app_render_result_shows_copy_and_download():

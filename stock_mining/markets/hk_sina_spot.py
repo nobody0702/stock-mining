@@ -23,6 +23,7 @@ class HkSinaSpotQuote:
     price: float | None
     low_52w: float | None
     high_52w: float | None
+    name: str | None = None
 
 
 def fetch_hk_spot_quotes_sina(
@@ -30,7 +31,10 @@ def fetch_hk_spot_quotes_sina(
     network_retries: int = 3,
     request_interval_sec: float = 0.15,
 ) -> dict[str, HkSinaSpotQuote]:
-    """Bulk HK spot quotes from Sina (thread-safe; no py_mini_racer)."""
+    """Bulk HK spot quotes from Sina (thread-safe; no py_mini_racer).
+
+    Covers the full HK listed universe (``qbgg_hk``), not only Stock Connect.
+    """
 
     def _fetch_all_pages() -> dict[str, HkSinaSpotQuote]:
         quotes: dict[str, HkSinaSpotQuote] = {}
@@ -67,10 +71,12 @@ def fetch_hk_spot_quotes_sina(
                 price = parse_number(row.get("lasttrade"))
                 low_52w = parse_number(row.get("low_52week"))
                 high_52w = parse_number(row.get("high_52week"))
+                raw_name = str(row.get("name") or "").strip()
                 quotes[code] = HkSinaSpotQuote(
                     price=price,
                     low_52w=low_52w,
                     high_52w=high_52w,
+                    name=raw_name or None,
                 )
         return quotes
 

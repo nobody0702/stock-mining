@@ -18,6 +18,7 @@ from stock_mining.web.prompt_query_service import (
     PromptQueryError,
     PromptQueryResult,
     query_live_prompt,
+    status_error_label,
 )
 
 _RESULT_KEY = "prompt_query_result"
@@ -74,13 +75,17 @@ def _run_query(market: str, query: str) -> None:
             progress=_progress,
         )
     except PromptQueryError as exc:
-        progress_box.update(label="查询失败", state="error")
-        st.session_state[_ERROR_KEY] = str(exc)
+        reason = str(exc)
+        progress_box.write(f"原因：{reason}")
+        progress_box.update(label=status_error_label(reason), state="error")
+        st.session_state[_ERROR_KEY] = reason
         st.session_state[_RESULT_KEY] = None
         return
     except Exception as exc:  # pragma: no cover - defensive UI path
-        progress_box.update(label="查询失败", state="error")
-        st.session_state[_ERROR_KEY] = f"未预期错误: {exc}"
+        reason = f"未预期错误（{type(exc).__name__}）：{exc}"
+        progress_box.write(f"原因：{reason}")
+        progress_box.update(label=status_error_label(reason), state="error")
+        st.session_state[_ERROR_KEY] = reason
         st.session_state[_RESULT_KEY] = None
         return
 
@@ -96,6 +101,7 @@ def main() -> None:
     st.caption(
         "选择市场后输入股票代码或名称，生成与 "
         "`scripts/print_prompt.py` 相同的 Cursor 分析提示词。"
+        "港股支持全部上市代码（不限于港股通）。"
     )
 
     market = st.radio(

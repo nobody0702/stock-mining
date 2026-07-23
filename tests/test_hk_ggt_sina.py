@@ -56,3 +56,22 @@ def test_hk_connect_falls_back_to_sina_when_eastmoney_fails(monkeypatch):
     stocks = provider.list_stocks()
     assert len(stocks) == 1
     assert stocks[0].code == "00700"
+
+
+def test_hk_list_resolve_stocks_includes_non_ggt_from_sina(monkeypatch):
+    from stock_mining.markets.hk_sina_spot import HkSinaSpotQuote
+
+    provider = AkshareHkConnectProvider(use_cache=False, network_retries=1)
+    monkeypatch.setattr(
+        provider,
+        "list_stocks",
+        lambda: [StockInfo("00700", "腾讯控股", Market.HK)],
+    )
+    provider._sina_spot_quotes = {
+        "00700": HkSinaSpotQuote(price=1.0, low_52w=1.0, high_52w=2.0, name="腾讯控股"),
+        "01045": HkSinaSpotQuote(price=2.0, low_52w=1.5, high_52w=3.0, name="亚太卫星"),
+    }
+
+    resolved = {item.code: item.name for item in provider.list_resolve_stocks()}
+    assert resolved["00700"] == "腾讯控股"
+    assert resolved["01045"] == "亚太卫星"
