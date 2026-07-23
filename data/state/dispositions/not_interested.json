@@ -5054,5 +5054,53 @@
     "reference_price": null,
     "set_at": "2026-07-21T13:17:14.911550",
     "release_at": "2027-01-20T13:17:14.911550"
+  },
+  {
+    "stock_key": "a:688550",
+    "name": "瑞联新材",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-22T11:56:36.086710",
+    "release_at": "2027-01-21T11:56:36.086710"
+  },
+  {
+    "stock_key": "a:002296",
+    "name": "辉煌科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-23T10:07:05.703514",
+    "release_at": "2027-01-22T10:07:05.703514"
+  },
+  {
+    "stock_key": "a:001389",
+    "name": "广合科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-23T11:26:00.420957",
+    "release_at": "2027-01-22T11:26:00.420957"
+  },
+  {
+    "stock_key": "a:688600",
+    "name": "皖仪科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-23T11:26:50.341072",
+    "release_at": "2027-01-22T11:26:50.341072"
+  },
+  {
+    "stock_key": "a:688168",
+    "name": "安博通",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-23T11:27:37.474663",
+    "release_at": "2027-01-22T11:27:37.474663"
+  },
+  {
+    "stock_key": "a:603196",
+    "name": "璞源材料",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-23T11:28:19.719861",
+    "release_at": "2027-01-22T11:28:19.719861"
   }
 ]
