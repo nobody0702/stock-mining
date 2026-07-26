@@ -934,5 +934,293 @@
     "reference_price": 30.14,
     "set_at": "2026-07-24T12:45:58.806315",
     "release_at": "2027-01-23T12:45:58.806315"
+  },
+  {
+    "stock_key": "a:300124",
+    "name": "汇川技术",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T09:13:02.772561",
+    "release_at": "2027-01-24T09:13:02.772561"
+  },
+  {
+    "stock_key": "a:300274",
+    "name": "阳光电源",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T09:14:41.370476",
+    "release_at": "2027-01-24T09:14:41.370476"
+  },
+  {
+    "stock_key": "a:300450",
+    "name": "先导智能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:10:45.711036",
+    "release_at": "2027-01-24T10:10:45.711036"
+  },
+  {
+    "stock_key": "a:601088",
+    "name": "中国神华",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:12:29.720360",
+    "release_at": "2027-01-24T10:12:29.720360"
+  },
+  {
+    "stock_key": "a:601985",
+    "name": "中国核电",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:24:31.912154",
+    "release_at": "2027-01-24T10:24:31.912154"
+  },
+  {
+    "stock_key": "a:603501",
+    "name": "豪威集团",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:26:10.621266",
+    "release_at": "2027-01-24T10:26:10.621266"
+  },
+  {
+    "stock_key": "a:000538",
+    "name": "云南白药",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:29:06.855215",
+    "release_at": "2027-01-24T10:29:06.855215"
+  },
+  {
+    "stock_key": "a:000651",
+    "name": "格力电器",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:29:08.406932",
+    "release_at": "2027-01-24T10:29:08.406932"
+  },
+  {
+    "stock_key": "a:000738",
+    "name": "航发控制",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:31:11.168727",
+    "release_at": "2027-01-24T10:31:11.168727"
+  },
+  {
+    "stock_key": "a:000875",
+    "name": "电投绿能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:32:59.500250",
+    "release_at": "2027-01-24T10:32:59.500250"
+  },
+  {
+    "stock_key": "a:000988",
+    "name": "华工科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-25T10:34:45.101660",
+    "release_at": "2027-01-24T10:34:45.101660"
+  },
+  {
+    "stock_key": "a:002222",
+    "name": "福晶科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T18:22:31.917653",
+    "release_at": "2027-01-25T18:22:31.917653"
+  },
+  {
+    "stock_key": "a:002747",
+    "name": "埃斯顿",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T18:35:36.311010",
+    "release_at": "2027-01-25T18:35:36.311010"
+  },
+  {
+    "stock_key": "a:002916",
+    "name": "深南电路",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:29:46.935577",
+    "release_at": "2027-01-25T19:29:46.935577"
+  },
+  {
+    "stock_key": "a:301230",
+    "name": "泓博医药",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:36:20.357246",
+    "release_at": "2027-01-25T19:36:20.357246"
+  },
+  {
+    "stock_key": "a:301363",
+    "name": "美好医疗",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:41:13.457205",
+    "release_at": "2027-01-25T19:41:13.457205"
+  },
+  {
+    "stock_key": "a:301510",
+    "name": "固高科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:45:44.847148",
+    "release_at": "2027-01-25T19:45:44.847148"
+  },
+  {
+    "stock_key": "a:301666",
+    "name": "大普微-UW",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:47:06.306101",
+    "release_at": "2027-01-25T19:47:06.306101"
+  },
+  {
+    "stock_key": "a:302132",
+    "name": "中航成飞",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:50:27.401072",
+    "release_at": "2027-01-25T19:50:27.401072"
+  },
+  {
+    "stock_key": "a:600298",
+    "name": "安琪酵母",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:56:22.557384",
+    "release_at": "2027-01-25T19:56:22.557384"
+  },
+  {
+    "stock_key": "a:600299",
+    "name": "安迪苏",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T19:58:36.555101",
+    "release_at": "2027-01-25T19:58:36.555101"
+  },
+  {
+    "stock_key": "a:600456",
+    "name": "宝钛股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:01:50.276767",
+    "release_at": "2027-01-25T20:01:50.276767"
+  },
+  {
+    "stock_key": "a:600663",
+    "name": "陆家嘴",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:01:56.864051",
+    "release_at": "2027-01-25T20:01:56.864051"
+  },
+  {
+    "stock_key": "a:600764",
+    "name": "中国海防",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:03:30.772183",
+    "release_at": "2027-01-25T20:03:30.772183"
+  },
+  {
+    "stock_key": "a:600879",
+    "name": "航天电子",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:05:03.450864",
+    "release_at": "2027-01-25T20:05:03.450864"
+  },
+  {
+    "stock_key": "a:600995",
+    "name": "南网储能",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:07:25.163629",
+    "release_at": "2027-01-25T20:07:25.163629"
+  },
+  {
+    "stock_key": "a:603308",
+    "name": "应流股份",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:10:19.849667",
+    "release_at": "2027-01-25T20:10:19.849667"
+  },
+  {
+    "stock_key": "a:688012",
+    "name": "中微公司",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:15:43.035407",
+    "release_at": "2027-01-25T20:15:43.035407"
+  },
+  {
+    "stock_key": "a:688041",
+    "name": "海光信息",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:16:54.416857",
+    "release_at": "2027-01-25T20:16:54.416857"
+  },
+  {
+    "stock_key": "a:688072",
+    "name": "拓荆科技",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:18:03.327212",
+    "release_at": "2027-01-25T20:18:03.327212"
+  },
+  {
+    "stock_key": "a:688122",
+    "name": "西部超导",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:18:54.476548",
+    "release_at": "2027-01-25T20:18:54.476548"
+  },
+  {
+    "stock_key": "a:688200",
+    "name": "华峰测控",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:19:34.636587",
+    "release_at": "2027-01-25T20:19:34.636587"
+  },
+  {
+    "stock_key": "a:688295",
+    "name": "中复神鹰",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:20:42.842219",
+    "release_at": "2027-01-25T20:20:42.842219"
+  },
+  {
+    "stock_key": "a:688333",
+    "name": "铂力特",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:21:07.904787",
+    "release_at": "2027-01-25T20:21:07.904787"
+  },
+  {
+    "stock_key": "a:688777",
+    "name": "中控技术",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:23:20.090810",
+    "release_at": "2027-01-25T20:23:20.090810"
+  },
+  {
+    "stock_key": "a:688981",
+    "name": "中芯国际",
+    "market": "a",
+    "reference_price": null,
+    "set_at": "2026-07-26T20:23:34.527918",
+    "release_at": "2027-01-25T20:23:34.527918"
   }
 ]
