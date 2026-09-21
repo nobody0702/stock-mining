@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
+
+from stock_mining.utils import is_st_name
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -54,6 +56,7 @@ def should_suppress_daily_push(
     current_price: float | None,
     now: datetime,
     drop_ratio: float = DEFAULT_TOO_EXPENSIVE_DROP_RATIO,
+    current_name: str | None = None,
 ) -> bool:
     if entry is None or entry.status != "active":
         return False
@@ -63,6 +66,13 @@ def should_suppress_daily_push(
         return True
 
     if kind == DispositionKind.NOT_INTERESTED:
+        # ST 摘帽再入场：存档名曾是 ST，当前名已不是 → 不压制
+        if (
+            current_name is not None
+            and is_st_name(entry.name)
+            and not is_st_name(current_name)
+        ):
+            return False
         if entry.release_at is None:
             return True
         return now < entry.release_at

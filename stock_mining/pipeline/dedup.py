@@ -32,6 +32,7 @@ def filter_candidates(
             _current_price(hit),
             now=now,
             drop_ratio=drop_ratio if drop_ratio is not None else 0.10,
+            current_name=hit.name,
         ):
             continue
         filtered.append(hit)

@@ -66,6 +66,73 @@ def test_not_interested_suppresses_until_release():
     assert not should_suppress_daily_push(entry, current_price=None, now=now + timedelta(days=90))
 
 
+def test_not_interested_st_destar_allows_reentry():
+    now = datetime(2025, 6, 1)
+    entry = StockDispositionEntry(
+        id=1,
+        stock_key="a:600001",
+        name="*ST示例",
+        market="a",
+        disposition=DispositionKind.NOT_INTERESTED,
+        reference_price=None,
+        set_at=now,
+        release_at=now + timedelta(days=365),
+        status="active",
+    )
+    assert not should_suppress_daily_push(
+        entry, current_price=None, now=now, current_name="示例股份"
+    )
+    assert should_suppress_daily_push(
+        entry, current_price=None, now=now, current_name="*ST示例"
+    )
+    # Non-ST archived name must still suppress even if current name is clean
+    plain = _entry(
+        DispositionKind.NOT_INTERESTED,
+        release_at=now + timedelta(days=90),
+    )
+    assert should_suppress_daily_push(
+        plain, current_price=None, now=now, current_name="样本"
+    )
+
+
+def test_dedup_allows_st_destar_candidate(store):
+    now = datetime(2025, 6, 1)
+    store.set_stock_disposition(
+        "a:600001",
+        "*ST摘帽",
+        "a",
+        DispositionKind.NOT_INTERESTED,
+        suppress_days=365,
+        now=now,
+    )
+    hit = CandidateHit(
+        code="600001",
+        name="摘帽股份",
+        market=Market.A,
+        track="profitable_growth",
+        score=70,
+        metrics={"price": 10.0},
+    )
+    still_st = CandidateHit(
+        code="600002",
+        name="*ST还在",
+        market=Market.A,
+        track="profitable_growth",
+        score=70,
+        metrics={},
+    )
+    store.set_stock_disposition(
+        still_st.stock_key,
+        "*ST还在",
+        "a",
+        DispositionKind.NOT_INTERESTED,
+        suppress_days=365,
+        now=now,
+    )
+    result = filter_candidates([hit, still_st], store, now=now)
+    assert [item.code for item in result] == ["600001"]
+
+
 def test_too_expensive_suppresses_until_price_drop_or_release():
     now = datetime(2025, 6, 1)
     entry = _entry(

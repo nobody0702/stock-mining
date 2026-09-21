@@ -1,8 +1,18 @@
-# stock-mining
+# stock-mining：可复核的成长股研究工作台
 
 每日 A 股 + 港股通选股：量化筛「错杀的成长型白马」，Web 审阅 + Cursor 大模型定性分析。
 
-> 数据来自 AkShare 公开接口，仅供研究，不构成投资建议。
+> **项目目的 / Purpose**：把“我想研究哪些股票”的个人经验，整理成一套可配置、可复核、可交接的开源研究流程。它先用公开数据筛选，再用人工或大模型补充商业模式、护城河和风险判断，帮助你更快建立自己的研究清单。
+>
+> 本项目仅供学习和研究，不构成任何投资建议。数据来自公开接口，质量和可用性可能随服务商变化。
+
+English documentation: [docs/README_EN.md](docs/README_EN.md)
+
+## 适合谁？
+
+- 想从零开始做 A 股 / 港股候选池的小白：按“安装 → 生成候选 → 打开网页”三步即可上手。
+- 已有筛选规则、想把规则配置化的研究者：直接修改 `config/*.yaml`，无需改核心代码。
+- 想参与开源的开发者：`filters/`、`markets/`、`scoring/`、`web/` 都有清晰边界，欢迎提交 Issue 和 PR。
 
 ## 投资定义
 
@@ -20,6 +30,15 @@ cd stock-mining
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+先用少量股票做一次检查（只会访问你主动运行的数据流程）：
+
+```bash
+python scripts/daily_screen.py --strategy mispriced_growth --market a --codes a:600519 --skip-dedup
+python scripts/serve_review.py --host 127.0.0.1
+```
+
+默认审阅页为 `http://localhost:8501`；单股 Prompt 查询页使用 `python scripts/serve_prompt_query.py --host 127.0.0.1`（端口 `8502`）。服务器或局域网访问时，把 `--host` 改为 `0.0.0.0`，并通过 `--port` 指定端口。两个启动脚本都支持 `--help`。
 
 ## 一日工作流
 
@@ -92,11 +111,37 @@ web/           Streamlit 审阅
 
 数据分离：`data/cache/`（行情缓存） vs `data/state/`（用户状态）。
 
+## 网页怎么用？
+
+1. **今日候选**：查看分数和指标，可按代码/名称、轨道过滤；卡片中可复制或下载 Prompt。
+2. **粘贴分析**：选择股票，粘贴 Markdown 表格，系统会校验维度并保存有效缓存。
+3. **我的标记**：三类标记互斥；加入自选的股票可随时移除，过期标记会自动释放。
+
+首次打开时点击页面顶部“第一次使用？先看这里”，页面会给出完整操作提示。结果文件在 `data/results/`，个人状态在 `data/state/`，缓存和状态都不会进入 Git。
+
+## 配置与扩展
+
+- `config/screen*.yaml`：市场、过滤条件、线程数、输出目录和状态策略。
+- `config/analysis_dimensions.yaml`：定性分析维度和缓存 TTL。
+- `stock_mining/filters/`：可注册新的过滤器；通过 YAML 参数复用，不把个人条件写死在 UI 中。
+- `stock_mining/markets/`：数据提供商和市场适配层。
+- `.env.example`：需要 LLM 接口时复制为 `.env`，密钥只放在本地，绝不提交。
+
 ## 测试
 
 ```bash
 pytest -q
 ```
+
+默认的单元测试不要求联网；涉及真实数据源的测试会显式标记为 network。
+
+## 贡献与联系作者
+
+欢迎提交 Issue、补充数据源、增加测试、改进文档和网页交互。提交前请说明改动目的、验证方式、是否需要联网数据。LLM 流程见 `docs/llm_analyze.md` / `docs/llm_analyze_en.md`。
+
+作者：370170920@qq.com
+
+欢迎更多小伙伴加入，也欢迎社会各界朋友完善这个项目，让它更标准、更通用、更容易被后来者使用。
 
 ## 定时任务
 

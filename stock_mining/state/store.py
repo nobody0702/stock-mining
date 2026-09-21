@@ -411,6 +411,7 @@ class UserStateStore:
         *,
         now: datetime | None = None,
         drop_ratio: float = DEFAULT_TOO_EXPENSIVE_DROP_RATIO,
+        current_name: str | None = None,
     ) -> bool:
         now = now or datetime.now()
         entry = self.get_stock_disposition(stock_key)
@@ -419,6 +420,7 @@ class UserStateStore:
             current_price=current_price,
             now=now,
             drop_ratio=drop_ratio,
+            current_name=current_name,
         )
 
     def release_expired_dispositions(self, *, now: datetime | None = None) -> int:

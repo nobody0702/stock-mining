@@ -204,7 +204,31 @@ def _render_payload_banner(payload: CandidatesPayload, service: ReviewService) -
 
 
 def main(default_strategy: str | None = None) -> None:
-    st.set_page_config(page_title="stock-mining 审阅", layout="wide")
+    st.set_page_config(
+        page_title="stock-mining · 股票研究工作台",
+        page_icon="📈",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+    st.markdown(
+        """
+        <style>
+        [data-testid="stMetricValue"] { font-size: 1.35rem; }
+        .stAlert { border-radius: 0.65rem; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.title("📈 stock-mining 股票研究工作台")
+    st.caption("把量化筛选结果整理成可复核、可标记、可交接的研究清单。仅供研究，不构成投资建议。")
+    with st.expander("第一次使用？先看这里", expanded=False):
+        st.markdown(
+            "1. 先运行 `scripts/daily_screen.py` 生成候选结果。\n"
+            "2. 在左侧选择策略，进入「今日候选」查看指标。\n"
+            "3. 复制 Prompt 到 Cursor/其他模型，分析后在「粘贴分析」保存结果。\n"
+            "4. 用「加入自选 / 价格偏贵 / 不感兴趣」管理后续推送。"
+        )
 
     strategy_id = _sidebar_strategy_selector(default_strategy)
     service = ReviewService.from_project_root(ROOT, strategy_id=strategy_id)
@@ -261,8 +285,35 @@ def _page_candidates(service: ReviewService) -> None:
         return
 
     _render_payload_banner(payload, service)
+    active = [hit for hit in payload.candidates if service.get_disposition_kind(hit.stock_key) is None]
+    marked_count = len(payload.candidates) - len(active)
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("候选总数", len(payload.candidates))
+    metric_cols[1].metric("待处理", len(active))
+    metric_cols[2].metric("已标记", marked_count)
 
-    for idx, hit in enumerate(payload.candidates):
+    filter_cols = st.columns([2, 1, 1])
+    with filter_cols[0]:
+        keyword = st.text_input("搜索股票", placeholder="代码或名称，例如 600519 / 茅台", label_visibility="collapsed")
+    tracks = sorted({hit.track for hit in payload.candidates})
+    with filter_cols[1]:
+        track = st.selectbox("轨道", ["全部"] + tracks, label_visibility="collapsed")
+    with filter_cols[2]:
+        show_marked = st.checkbox("显示已标记", value=True)
+
+    keyword = keyword.strip().lower()
+    visible = [
+        hit for hit in payload.candidates
+        if (show_marked or service.get_disposition_kind(hit.stock_key) is None)
+        and (track == "全部" or hit.track == track)
+        and (not keyword or keyword in hit.name.lower() or keyword in hit.code.lower() or keyword in hit.stock_key.lower())
+    ]
+    if not visible:
+        st.info("没有符合条件的候选。可以清空搜索条件，或勾选「显示已标记」。")
+        return
+    st.caption(f"当前显示 {len(visible)} 只")
+
+    for idx, hit in enumerate(visible):
         st.divider()
         _candidate_card(service, hit, idx)
 
@@ -341,6 +392,8 @@ def _run_hint(strategy_id: str) -> str:
         )
     if strategy_id == "mispriced_growth_hk":
         return "python3 scripts/daily_screen.py --strategy mispriced_growth_hk --market h"
+    if strategy_id == "quality_roe_margin":
+        return "python3 scripts/daily_screen.py --strategy quality_roe_margin --market a"
     if strategy_id == "all":
         return "python3 scripts/daily_screen.py --strategy all --market all"
     return "python3 scripts/daily_screen.py"

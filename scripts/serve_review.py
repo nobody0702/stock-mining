@@ -16,13 +16,26 @@ def resolve_python(root: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Launch Streamlit review UI")
+    parser = argparse.ArgumentParser(
+        description="Launch the stock-mining review UI",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument(
         "--strategy",
-        choices=["mispriced_growth", "normal_value", "normal_value_bm_pass", "mispriced_growth_hk", "all"],
+        choices=[
+            "mispriced_growth",
+            "normal_value",
+            "mispriced_growth_hk",
+            "quality_roe_margin",
+            "normal_value_bm_pass",
+            "all",
+        ],
         default=None,
         help="打开时默认选中的筛选策略（也可在侧边栏切换）",
     )
+    parser.add_argument("--host", default="0.0.0.0", help="监听地址；本机使用 127.0.0.1")
+    parser.add_argument("--port", type=int, default=8501, help="Web 端口")
+    parser.add_argument("--no-headless", action="store_true", help="启动后尝试打开浏览器")
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -35,7 +48,11 @@ def main() -> int:
         "run",
         str(app_path),
         "--server.headless",
-        "true",
+        "false" if args.no_headless else "true",
+        "--server.address",
+        args.host,
+        "--server.port",
+        str(args.port),
     ]
     env = os.environ.copy()
     env.setdefault("STREAMLIT_BROWSER_GATHER_USAGE_STATS", "false")
