@@ -1,6 +1,8 @@
-# stock-mining: a reproducible stock research workbench
+# stock-mining: a workbench for finding mispriced quality businesses
 
-> **Purpose**: turn personal stock-picking habits into a configurable, reviewable and shareable open-source workflow. The project screens A-share and HK stocks with public data, then leaves room for human or LLM review of business models, moats and risks.
+> **Investment philosophy**: inspired by the publicly shared ideas of long-term value investors such as Warren Buffett, Charlie Munger, Duan Yongping and Li Lu. The project focuses on business quality, durable growth, business models and margin of safety, and looks for high-quality companies that may have been mispriced by the market.
+>
+> **Purpose**: turn these ideas into a configurable, reviewable and shareable open-source workflow. The project first screens A-share and HK stocks with public data, then leaves room for human or LLM review of business models, moats and risks.
 >
 > This project is for education and research only. It is not investment advice. Public data providers may change or become unavailable.
 
